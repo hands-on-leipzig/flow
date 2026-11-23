@@ -112,7 +112,7 @@ function formatPoints(value: number) {
                 <th scope="col">Platz</th>
                 <th scope="col">Team</th>
                 <th v-for="round in results.rounds" :key="round.round" scope="col">{{ round.label }}</th>
-                <th scope="col">Schnitt</th>
+                <th scope="col">Punktedurchschnitt</th>
               </tr>
             </thead>
             <tbody>
@@ -123,12 +123,12 @@ function formatPoints(value: number) {
                   <span class="scor-public__muted">{{ team.number }}</span>
                 </th>
                 <td v-for="round in results.rounds" :key="round.round">{{ roundPoints(team, round.round) ?? '–' }}</td>
-                <td class="scor-public__average">{{ formatPoints(team.average) }}</td>
+                <td class="scor-public__average">ø {{ formatPoints(team.average) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="scor-public__muted">Der Schnitt zählt eine fehlende Runde als 0.</p>
+        <p class="scor-public__muted">Der Punktedurchschnitt zählt eine fehlende Runde als 0.</p>
       </section>
     </template>
   </div>

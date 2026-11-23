@@ -28,11 +28,7 @@ const awardColumns = [
   {id: 'coaching', label: 'Coaching', nominate: false, trophy: true},
   {id: 'robot', label: 'Spiel', nominate: false, trophy: false},
 ]
-const recapItems = [
-  ...podium.map((slot) => ({...slot, nominate: false})),
-  ...awardColumns.filter((column) => column.id !== 'place'),
-]
-const judgedIds = [...podiumIds, 'research', 'robotdesign', 'core_values']
+const categoryIds = ['research', 'robotdesign', 'core_values']
 const presentRoot = ref<HTMLElement | null>(null)
 const presenting = ref(false)
 let storedAwardsKey: string | null = null
@@ -58,12 +54,8 @@ function nominationCount(category: string) {
   return nominations.value.filter((row) => row.category === category).length
 }
 
-function heldTrophy(teamId: number) {
-  return trophies.value.find((row) => row.team === teamId && judgedIds.includes(row.category))
-}
-
-function teamById(id: number) {
-  return awardTeams.value.find((team) => team.id === id)
+function heldCategoryTrophy(teamId: number) {
+  return trophies.value.find((row) => row.team === teamId && categoryIds.includes(row.category))
 }
 
 function hasTrophy(teamId: number, category: string) {
@@ -83,11 +75,8 @@ function canNominate(category: string, teamId: number) {
 
 function trophyCount(teamId: number) {
   const cups = trophies.value.filter((row) => row.team === teamId).length
-  return cups + (coaching.value === teamId ? 1 : 0)
-}
-
-function nominationTotal(teamId: number) {
-  return awardColumns.filter((column) => column.nominate && marked(nominations.value, teamId, column.id)).length
+  const spiel = spielTrophy().some((row) => row.team === teamId) ? 1 : 0
+  return cups + spiel + (coaching.value === teamId ? 1 : 0)
 }
 
 const podiumSlots = computed(() => Math.min(podium.length, awardTeams.value.length))
@@ -104,7 +93,8 @@ function canAward(team: any, category: string) {
   if (!on && trophyCount(team.id) >= 3) return false
   if (category === 'coaching') return true
   if (!on && !marked(nominations.value, team.id, category)) return false
-  const held = heldTrophy(team.id)
+  if (placeOf(team.id)?.id === 'champion') return false
+  const held = heldCategoryTrophy(team.id)
   return !held || held.category === category
 }
 
@@ -138,17 +128,32 @@ function resolvePodium(rows: {team: number, category: string}[]) {
     taken.add(team.id)
     resolved.push({team: team.id, category: slot.id})
   })
-  const placed = new Set(resolved.map((row) => row.team))
+  const champion = resolved.find((row) => row.category === 'champion')?.team
   return [
-    ...rows.filter((row) => !podiumIds.includes(row.category) && !(placed.has(row.team) && judgedIds.includes(row.category))),
+    ...rows.filter((row) => !podiumIds.includes(row.category) && !(row.team === champion && categoryIds.includes(row.category))),
     ...resolved,
   ]
+}
+
+function podiumFilled(index: number) {
+  return trophies.value.some((row) => row.category === podium[index].id)
+}
+
+/** Place shown in Gesamt: after a tie is decided, unpicked teams move behind the podium slots of their group. */
+function shownPlace(team: any) {
+  const slot = placeOf(team.id)
+  if (slot) return podiumIds.indexOf(slot.id) + 1
+  if (!isPodiumTie(team)) return Number(team.champion_rank)
+  const reach = podiumReach(team)
+  if (!reach.every(podiumFilled)) return Number(team.champion_rank)
+  return reach[reach.length - 1] + 2
 }
 
 function canPlace(team: any) {
   if (!awardsEditable.value || !isPodiumTie(team)) return false
   if (placeOf(team.id)) return true
-  return podiumReach(team).some((index) => !trophies.value.some((row) => row.category === podium[index].id))
+  if (trophyCount(team.id) >= 3) return false
+  return podiumReach(team).some((index) => !podiumFilled(index))
 }
 
 function togglePlace(team: any) {
@@ -169,9 +174,7 @@ function toggleNomination(teamId: number, category: string) {
   if (!canNominate(category, teamId)) return
   toggleMark(nominations.value, teamId, category)
   trophies.value = trophies.value.filter((row) => {
-    if (row.category === 'research' || row.category === 'robotdesign' || row.category === 'core_values') {
-      return marked(nominations.value, row.team, row.category)
-    }
+    if (categoryIds.includes(row.category)) return marked(nominations.value, row.team, row.category)
     return true
   })
 }
@@ -185,28 +188,6 @@ function toggleAward(team: any, category: string) {
   }
   trophies.value = trophies.value.filter((row) => row.category !== category)
   if (!on) trophies.value.push({team: team.id, category})
-}
-
-function awardHolder(category: string) {
-  if (category === 'coaching') return coaching.value ? teamById(Number(coaching.value)) : null
-  const row = trophies.value.find((entry) => entry.category === category)
-  return row ? teamById(row.team) : null
-}
-
-function holderLine(category: string) {
-  if (category === 'robot') {
-    const leaders = awardTeams.value.filter((team) => team.robot_rank === 1)
-    return leaders.length ? leaders.map((team) => `${team.number} ${team.name}`).join(', ') : '—'
-  }
-  const team = awardHolder(category)
-  return team ? `${team.number} ${team.name}` : '—'
-}
-
-function nomineeTeams(category: string) {
-  return nominations.value
-      .filter((row) => row.category === category)
-      .map((row) => teamById(row.team))
-      .filter((team) => !!team)
 }
 
 async function startPresent() {
@@ -480,11 +461,10 @@ function spielTrophy() {
 
 function awardSortValue(team: any, key: string) {
   if (key === 'number') return Number(team.number ?? 0)
-  if (key === 'noms') return nominationTotal(team.id)
   if (key === 'robot') return Number(team.robot_rank ?? 999)
   if (key === 'place') {
     const slot = podium.findIndex((entry) => marked(trophies.value, team.id, entry.id))
-    return Number(team.champion_rank ?? 999) + (slot >= 0 ? slot : podium.length) / 10
+    return shownPlace(team) + (slot >= 0 ? slot : podium.length) / 10
   }
   if (key === 'coaching') return hasTrophy(team.id, 'coaching') ? 1 : 0
   const nominated = marked(nominations.value, team.id, key) ? 1 : 0
@@ -575,7 +555,7 @@ function formatPoints(value: number) {
             <tr>
               <th scope="col">Team</th>
               <th v-for="round in results.rounds" :key="round.round" scope="col">{{ round.label }}</th>
-              <th scope="col">Schnitt</th>
+              <th scope="col">Punktedurchschnitt</th>
             </tr>
           </thead>
           <tbody>
@@ -592,7 +572,7 @@ function formatPoints(value: number) {
                 <span v-else class="scor-points__state">–</span>
               </td>
               <td>
-                <span class="scor-points scor-points--best">{{ formatPoints(team.robot) }}</span>
+                <span class="scor-points scor-points--best">ø {{ formatPoints(team.robot) }}</span>
               </td>
             </tr>
           </tbody>
@@ -600,7 +580,7 @@ function formatPoints(value: number) {
       </div>
       <p class="scor-results__note">
         Gespeicherte Bögen zählen mit. „begonnen“ heißt: Schiri und Team haben noch nicht beide bestätigt.
-        Die Testrunde steht hier nicht. Der Schnitt lässt eine fehlende Runde als 0 zählen.
+        Die Testrunde steht hier nicht. Der Punktedurchschnitt lässt eine fehlende Runde als 0 zählen.
       </p>
     </section>
 
@@ -665,12 +645,6 @@ function formatPoints(value: number) {
                     <i v-if="awardSortKey === 'number'" class="bi" :class="awardSortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
                   </button>
                 </th>
-                <th scope="col">
-                  <button type="button" class="scor-sort" :class="{ 'is-active': awardSortKey === 'noms' }" :aria-label="`Anzahl der Nominierungen, ${awardSortLabel('noms')}`" @click="toggleAwardSort('noms')">
-                    Anzahl
-                    <i v-if="awardSortKey === 'noms'" class="bi" :class="awardSortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
-                  </button>
-                </th>
                 <th v-for="column in awardColumns" :key="column.id" scope="col">
                   <button type="button" class="scor-sort" :class="{ 'is-active': awardSortKey === column.id }" :aria-label="`${column.label}, ${awardSortLabel(column.id)}`" @click="toggleAwardSort(column.id)">
                     {{ column.label }}
@@ -686,16 +660,14 @@ function formatPoints(value: number) {
                   <span class="scor-team__name">{{ team.name }}</span>
                   <span class="scor-team__number">{{ team.number }}</span>
                 </th>
-                <td>
-                  <span class="scor-place">{{ nominationTotal(team.id) }}</span>
-                </td>
                 <td v-for="column in awardColumns" :key="column.id">
                   <div v-if="column.id === 'robot'" class="scor-award-cell scor-award-cell--result">
                     <span class="scor-place">{{ team.robot_rank }}</span>
-                    <span class="scor-place__points">{{ formatPoints(team.robot) }}</span>
+                    <span class="scor-place__points">ø {{ formatPoints(team.robot) }}</span>
                   </div>
                   <div v-else-if="column.id === 'place'" class="scor-award-cell scor-award-cell--result">
-                    <span class="scor-place">{{ team.champion_rank }}</span>
+                    <span class="scor-place">{{ shownPlace(team) }}</span>
+                    <span class="scor-place__points">{{ formatPoints(team.champion) }}</span>
                     <button
                         v-if="placeOf(team.id) || isPodiumTie(team)"
                         type="button"
@@ -735,21 +707,13 @@ function formatPoints(value: number) {
                     >
                       <i class="bi" :class="hasTrophy(team.id, column.id) ? 'bi-trophy-fill' : 'bi-trophy'" aria-hidden="true"/>
                     </button>
+                    <span v-if="column.nominate" class="scor-place__points">{{ formatPoints(team[column.id]) }}</span>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <ul class="scor-recap">
-          <li v-for="column in recapItems" :key="column.id">
-            <span class="scor-recap__label">{{ column.label }}</span>
-            <strong>{{ holderLine(column.id) }}</strong>
-            <span v-if="column.nominate" class="scor-recap__noms">
-              {{ nomineeTeams(column.id).map((team) => `${team.number} ${team.name}`).join(', ') || 'keine Nominierung' }}
-            </span>
-          </li>
-        </ul>
       </div>
       <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
       <template v-if="results.can_edit_awards && results.lifecycle">
@@ -1120,14 +1084,6 @@ html[data-theme='dark'] .scor-switch__lens-glass {
   font-size: 1.8rem;
 }
 
-.scor-stage:fullscreen .scor-recap__label {
-  font-size: 1.05rem;
-}
-
-.scor-stage:fullscreen .scor-recap strong {
-  font-size: 1.45rem;
-}
-
 .scor-stage:fullscreen .scor-mark {
   width: 3.4rem;
   height: 3.4rem;
@@ -1342,39 +1298,5 @@ html[data-theme='dark'] .scor-switch__lens-glass {
 
 .scor-mark:not(:disabled):hover {
   background: color-mix(in srgb, var(--color-text) 8%, transparent);
-}
-
-.scor-recap {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.scor-recap li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-bg-muted);
-}
-
-.scor-recap__label {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.scor-recap strong {
-  font-size: 1.05rem;
-}
-
-.scor-recap__noms {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
 }
 </style>
