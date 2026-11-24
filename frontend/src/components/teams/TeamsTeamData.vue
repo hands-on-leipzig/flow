@@ -669,9 +669,6 @@ onActivated(() => {
             {{ deadlineSaving ? 'Speichern…' : 'Fristen speichern' }}
           </button>
         </div>
-        <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-          Teilnehmende: Name, Geschlecht, Geburtsdatum. Übrige Angaben: Foto und Essen pro Person. Gleiches Datum ist der Standard. Eine Änderung der Teilnehmenden-Frist geht an info@hands-on-technology.org und an Coaches, die „Teilnehmende komplett“ noch nicht bestätigt haben.
-        </p>
       </section>
       <TeamsRegistrationStats/>
       <TeamsMultiTeamCoaches/>

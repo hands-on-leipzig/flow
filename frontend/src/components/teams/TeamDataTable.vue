@@ -341,7 +341,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 </script>
 
 <template>
-  <div>
+  <div class="team-data-table">
     <div v-if="syncBubbles.length" class="team-data-sync-bubbles">
       <button
           v-for="bubble in syncBubbles"
@@ -446,8 +446,10 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
       >
         <tr class="team-data-group">
           <td :colspan="tableSpan()">
-            <strong>{{ group.label }}</strong>
-            <span class="team-data-group__count">{{ group.rows.length }} Teams</span>
+            <span class="team-data-group__label">
+              <strong>{{ group.label }}</strong>
+              <span class="team-data-group__count">{{ group.rows.length }} Teams</span>
+            </span>
           </td>
         </tr>
         <template v-for="row in group.rows" :key="row.id">
@@ -638,6 +640,18 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 </template>
 
 <style scoped>
+/* The scroll frame needs a bounded flex parent inside the fill tile, or rows are clipped instead of scrolling. */
+.team-data-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.team-data-sync-bubbles {
+  flex: 0 0 auto;
+}
+
 .vol-table-frame--team-data {
   --td-drag: 1.75rem;
   --td-seq: 7.4rem;
@@ -762,6 +776,12 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   padding-bottom: 0.3rem;
   background: #f4f6f9;
   font-size: 0.8rem;
+}
+
+.team-data-group__label {
+  position: sticky;
+  left: 0.35rem;
+  display: inline-block;
 }
 
 .team-data-group__count {
