@@ -214,31 +214,27 @@ class TeamController extends Controller
             return response()->json(['error' => 'No plan found for this event'], 404);
         }
 
-        DB::transaction(function () use ($validated, $plan) {
+        DB::transaction(function () use ($validated, $plan, $program) {
+            // Get existing room assignments before deletion
             $teamIds = collect($validated['order'])->pluck('team_id');
-            $existingRows = TeamPlan::where('plan', $plan->id)
+            $existingAssignments = TeamPlan::where('plan', $plan->id)
                 ->whereIn('team', $teamIds)
-                ->get(['team', 'room', 'noshow']);
-            $roomByTeam = [];
-            $noshowByTeam = [];
-            foreach ($existingRows as $row) {
-                $roomByTeam[$row->team] = $row->room;
-                $noshowByTeam[$row->team] = (bool) $row->noshow;
-            }
+                ->pluck('room', 'team')
+                ->toArray();
 
             // Delete existing team_plan entries for this plan and program
             TeamPlan::where('plan', $plan->id)
                 ->whereIn('team', $teamIds)
                 ->delete();
 
-            // Insert new team order with preserved room assignments and no-show flags
+            // Insert new team order with preserved room assignments
             foreach ($validated['order'] as $item) {
                 TeamPlan::create([
                     'team' => $item['team_id'],
                     'plan' => $plan->id,
                     'team_number_plan' => $item['order'],
-                    'room' => $roomByTeam[$item['team_id']] ?? null,
-                    'noshow' => $noshowByTeam[$item['team_id']] ?? false,
+                    'room' => $existingAssignments[$item['team_id']] ?? null, // Preserve existing room assignment
+                    'noshow' => false // Default to false
                 ]);
             }
         });

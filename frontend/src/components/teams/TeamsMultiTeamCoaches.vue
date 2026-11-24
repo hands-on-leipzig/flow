@@ -137,7 +137,7 @@ watch(() => event.value?.id, () => {
 <template>
   <div
       v-if="showTile"
-      class="glass-card liquid-surface-inner vol-sidebar-tile teams-multi-team-coaches"
+      class="glass-card liquid-surface-inner vol-sidebar-tile"
   >
     <h2 class="vol-sidebar-heading">Coach:innen mit mehr als einem Team</h2>
 
