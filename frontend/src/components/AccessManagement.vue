@@ -79,6 +79,8 @@ type SeasonGroup = {
 const eventStore = useEventStore()
 const loading = ref(true)
 const error = ref('')
+const isAdmin = ref(false)
+const eventSearch = ref('')
 const myPartners = ref<Partner[]>([])
 const eventsBySeason = ref<SeasonGroup[]>([])
 const events = ref<EventRow[]>([])
@@ -107,6 +109,20 @@ const shareEvent = computed(() =>
 
 const eventCount = computed(() => events.value.length)
 
+const selectableGroups = computed(() => {
+  const q = eventSearch.value.trim().toLowerCase()
+  if (!q) return eventsBySeason.value
+  return eventsBySeason.value
+      .map((group) => ({
+        ...group,
+        events: group.events.filter((ev) =>
+            ev.id === shareEventId.value
+            || [ev.name, ev.regional_partner_name].some((s) => s?.toLowerCase().includes(q))
+        ),
+      }))
+      .filter((group) => group.events.length)
+})
+
 async function loadOverview() {
   loading.value = true
   error.value = ''
@@ -116,6 +132,7 @@ async function loadOverview() {
       params.event = eventStore.selectedEvent.id
     }
     const {data} = await axios.get('/user/access', {params})
+    isAdmin.value = !!data.is_admin
     myPartners.value = data.my_partners || []
     eventsBySeason.value = data.events_by_season || []
     events.value = data.events || []
@@ -262,7 +279,8 @@ onMounted(async () => {
     <div>
       <h1 class="text-2xl font-bold tracking-tight">Zugangsverwaltung</h1>
       <p class="mt-1 text-sm text-[var(--color-text-muted)]">
-        Deine Regionalpartner, die Veranstaltungen dazu — und wen du pro Veranstaltung einladen kannst.
+        <template v-if="isAdmin">Als FLOW-Admin verwaltest du die Zugänge zu allen Veranstaltungen.</template>
+        <template v-else>Deine Regionalpartner, die Veranstaltungen dazu — und wen du pro Veranstaltung einladen kannst.</template>
       </p>
     </div>
 
@@ -277,6 +295,7 @@ onMounted(async () => {
     </div>
 
     <template v-else>
+      <template v-if="!isAdmin">
       <!-- 1. My partners -->
       <section class="glass-card liquid-surface-inner p-5 space-y-3">
         <div class="flex items-baseline justify-between gap-2">
@@ -361,6 +380,7 @@ onMounted(async () => {
           </div>
         </div>
       </section>
+      </template>
 
       <!-- 3. Share access for a specific event -->
       <section class="glass-card liquid-surface-inner p-5 space-y-4">
@@ -376,6 +396,16 @@ onMounted(async () => {
         </div>
 
         <template v-else>
+          <label v-if="isAdmin" class="block text-sm max-w-xl">
+            <span class="block text-xs font-semibold text-[var(--color-text-subtle)] mb-1">Suchen</span>
+            <input
+                v-model="eventSearch"
+                type="search"
+                class="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2"
+                placeholder="Veranstaltung oder Regionalpartner"
+                autocomplete="off"
+            />
+          </label>
           <label class="block text-sm max-w-xl">
             <span class="block text-xs font-semibold text-[var(--color-text-subtle)] mb-1">Veranstaltung</span>
             <select
@@ -383,7 +413,7 @@ onMounted(async () => {
                 class="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2"
             >
               <optgroup
-                  v-for="group in eventsBySeason"
+                  v-for="group in selectableGroups"
                   :key="group.season.id ?? group.season.name"
                   :label="`${group.season.name || 'Saison'}${group.season.year ? ` (${group.season.year})` : ''}`"
               >
