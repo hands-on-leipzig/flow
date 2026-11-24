@@ -68,7 +68,7 @@ class UserAccessController extends Controller
     }
 
     /**
-     * Access overview for normal users: my partners + my events.
+     * Access overview: my partners + my events. Admins get every event.
      */
     public function overview(Request $request): JsonResponse
     {
@@ -79,13 +79,14 @@ class UserAccessController extends Controller
 
         $myPartners = $this->partnersOf($user);
 
-        $eventIds = $user->accessibleEventIds(FlowAccess::PERMISSION_FLOW);
+        $isAdmin = FlowAccess::isAdmin(FlowAccess::rolesFromJwt($request->attributes->get('jwt'))) || $user->isFlowAdmin();
+        $eventIds = $isAdmin ? null : $user->accessibleEventIds(FlowAccess::PERMISSION_FLOW);
         $eventsBySeason = [];
         $flatEvents = [];
 
         if ($eventIds !== []) {
             $events = Event::query()
-                ->whereIn('id', $eventIds)
+                ->when($eventIds !== null, fn ($query) => $query->whereIn('id', $eventIds))
                 ->with(['seasonRel', 'levelRel', 'regionalPartner'])
                 ->orderBy('date')
                 ->get();
@@ -137,6 +138,7 @@ class UserAccessController extends Controller
         }
 
         return response()->json([
+            'is_admin' => $isAdmin,
             'my_partners' => $myPartners,
             'events_by_season' => $eventsBySeason,
             'events' => $flatEvents,
