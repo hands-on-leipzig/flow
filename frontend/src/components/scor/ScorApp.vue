@@ -312,9 +312,8 @@ async function saveStage() {
 <template>
   <form v-if="needsLogin" class="mx-auto max-w-md space-y-4" @submit.prevent="localLogin">
     <h1 class="text-2xl font-bold tracking-tight">SCORE</h1>
-    <p class="text-lg text-[var(--color-text-muted)]">Mit dem Namen und Passwort von der Veranstaltung anmelden.</p>
     <label class="block text-lg">
-      Name
+      Username
       <input v-model="localName" class="glass-input mt-1 w-full" autocomplete="username" placeholder="Schiri 1"/>
     </label>
     <label class="block text-lg">
