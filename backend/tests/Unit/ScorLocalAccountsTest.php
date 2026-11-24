@@ -51,6 +51,8 @@ class ScorLocalAccountsTest extends TestCase
             $table->boolean('can_scor_referee')->default(false);
             $table->boolean('can_scor_jury')->default(false);
             $table->boolean('can_scor_admin')->default(false);
+            $table->boolean('can_scor_head_referee')->default(false);
+            $table->boolean('can_scor_head_judge')->default(false);
             $table->timestamp('granted_at')->nullable();
             $table->unsignedInteger('granted_by')->nullable();
         });

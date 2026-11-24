@@ -90,11 +90,7 @@ final class ScorSheetService
                 'name' => $event->name,
                 'date' => $event->date,
             ],
-            'roles' => [
-                'referee' => $roles->allowsReferee(),
-                'jury' => $roles->allowsJury(),
-                'admin' => $roles->admin || $user->isFlowAdmin(),
-            ],
+            'roles' => $roles->view(),
             'has_plan' => $planId !== null,
             'groups' => $groups,
             'stage' => (new ScorStage())->state($eventId),
@@ -115,7 +111,10 @@ final class ScorSheetService
      */
     public function results(User $user, int $eventId, bool $public = false): array
     {
-        $roles = $public ? \App\Support\ScorGrant::none() : $this->requireEvent($user, $eventId);
+        $roles = $public ? ScorGrant::none() : $this->requireEvent($user, $eventId);
+        if (!$public && !$roles->seesResults()) {
+            throw new ScorAccessException('Die Ergebnisse sehen Head Ref, Head Judge und Veranstaltung-Admin.');
+        }
         $event = $this->eventRow($eventId);
         $planId = $this->planId($eventId);
         $matches = $planId ? $this->matches($planId) : [];
@@ -236,7 +235,7 @@ final class ScorSheetService
             'rounds' => array_values($rounds),
             'teams' => $rows,
             'awards' => (new ScorAwards())->forEvent($eventId),
-            'can_edit_awards' => $roles->admin || $user->isFlowAdmin(),
+            'can_edit_awards' => $roles->admin,
             'flow_admin' => $user->isFlowAdmin(),
             'lifecycle' => (new ScorLifecycle())->state($eventId),
         ];
@@ -248,7 +247,7 @@ final class ScorSheetService
         $user = new User;
         $user->id = 0;
 
-        return $this->results($user, $eventId, public: true);
+        return (new ScorPublicResults())->fromResults($this->results($user, $eventId, public: true));
     }
 
     public function closeEvent(User $user, int $eventId): array
@@ -303,8 +302,8 @@ final class ScorSheetService
     public function pickStage(User $user, int $eventId, array $teamIds): array
     {
         $roles = $this->requireEvent($user, $eventId);
-        if (!$roles->admin && !$user->isFlowAdmin()) {
-            throw new ScorAccessException('Die Bühnenauswahl trifft die Veranstaltungs-Admin.');
+        if (!$roles->picksStage()) {
+            throw new ScorAccessException('Die Bühnenauswahl treffen Head Judge und Veranstaltung-Admin.');
         }
         foreach ($teamIds as $teamId) {
             $this->teamOnEvent($eventId, (int) $teamId);
@@ -316,12 +315,13 @@ final class ScorSheetService
     public function saveAwards(User $user, int $eventId, array $input): array
     {
         $roles = $this->requireEvent($user, $eventId);
-        if (!$roles->admin && !$user->isFlowAdmin()) {
+        if (!$roles->admin) {
             throw new ScorAccessException('Auszeichnungen setzt die Veranstaltungs-Admin.');
         }
 
+        $standings = $this->results($user, $eventId)['teams'];
         $known = [];
-        foreach ($this->results($user, $eventId)['teams'] as $team) {
+        foreach ($standings as $team) {
             $known[(int) $team['id']] = true;
         }
         $trophies = $this->awardRows($input['trophies'] ?? [], $known);
@@ -332,7 +332,7 @@ final class ScorSheetService
         if ($coaching !== null && !isset($known[$coaching])) {
             throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
         }
-        $this->assertChampionPick($user, $eventId, $trophies);
+        $this->assertPodium($standings, $trophies);
 
         $saved = (new ScorAwards())->replace($eventId, $trophies, $nominations, $coaching);
 
@@ -340,16 +340,32 @@ final class ScorSheetService
     }
 
     /**
+     * Place n goes to a team whose champion rank equals the rank at position n.
+     * Only ties leave a choice.
+     *
+     * @param  list<array<string, mixed>>  $standings  sorted by champion rank
      * @param  list<array{team: int, category: string}>  $trophies
      */
-    private function assertChampionPick(User $user, int $eventId, array $trophies): void
+    private function assertPodium(array $standings, array $trophies): void
     {
-        $picks = array_values(array_filter($trophies, fn (array $row) => $row['category'] === 'champion'));
-        if ($trophies === []) {
-            return;
+        $rankAt = array_map(fn (array $team) => (int) $team['champion_rank'], $standings);
+        $rankOf = [];
+        foreach ($standings as $team) {
+            $rankOf[(int) $team['id']] = (int) $team['champion_rank'];
         }
-        if (count($picks) !== 1) {
-            throw new ScorAccessException('Bitte genau einen Champion festlegen.', 422);
+        $seen = [];
+        foreach ($trophies as $row) {
+            $slot = array_search($row['category'], ScorAwards::PODIUM, true);
+            if ($slot === false) {
+                continue;
+            }
+            if (isset($seen[$slot])) {
+                throw new ScorAccessException('Champion, Silber und Bronze gehen an je ein Team.', 422);
+            }
+            $seen[$slot] = true;
+            if (!isset($rankAt[$slot]) || $rankOf[$row['team']] !== $rankAt[$slot]) {
+                throw new ScorAccessException('Champion, Silber und Bronze folgen der Gesamtwertung.', 422);
+            }
         }
     }
 
@@ -432,7 +448,9 @@ final class ScorSheetService
 
     public function reopenReferee(User $user, int $eventId, int $matchId, int $teamId): array
     {
-        $this->requireAdmin($user, $eventId);
+        if (!$this->requireEvent($user, $eventId)->reopensReferee()) {
+            throw new ScorAccessException('Schiri-Bögen öffnen Head Ref und Veranstaltung-Admin wieder.');
+        }
         $this->matchTeam($eventId, $matchId, $teamId);
         DB::table('scor_sheet')
             ->where('event', $eventId)
@@ -485,6 +503,13 @@ final class ScorSheetService
         $sheet = $this->findSheet($eventId, 'jury', $teamId, 0);
         $answers = $this->answersOf($sheet);
         $this->assertAnswered($formId, $answers, requireComments: true);
+        $items = $this->forms->itemsFor($formId);
+        $skipped = $this->skippedFeedback($items, $answers);
+        foreach ($items as $item) {
+            if (in_array((int) $item->section_id, $skipped, true)) {
+                unset($answers['texts'][(string) $item->id]);
+            }
+        }
         $this->storeFlags($eventId, 'jury', $teamId, 0, $answers, $formId, ['completed' => true]);
 
         return $this->jurySheet($user, $eventId, $teamId);
@@ -492,7 +517,9 @@ final class ScorSheetService
 
     public function reopenJury(User $user, int $eventId, int $teamId): array
     {
-        $this->requireAdmin($user, $eventId);
+        if (!$this->requireEvent($user, $eventId)->reopensJury()) {
+            throw new ScorAccessException('Jury-Bögen öffnen Head Judge und Veranstaltung-Admin wieder.');
+        }
         $this->teamOnEvent($eventId, $teamId);
         DB::table('scor_sheet')
             ->where('event', $eventId)
@@ -583,6 +610,7 @@ final class ScorSheetService
         }
         $event = $this->eventRow($eventId);
         $items = $this->forms->itemsFor($formId);
+        $follows = $this->feedbackFollows($items);
         $sections = [];
         foreach ($items as $item) {
             $sectionId = (int) $item->section_id;
@@ -593,6 +621,7 @@ final class ScorSheetService
                     'kind' => $item->section_kind,
                     'note' => $item->section_note,
                     'disabled' => in_array($sectionId, $answers['disabled_sections'], true),
+                    'follows' => $follows[$sectionId] ?? null,
                     'items' => [],
                 ];
             }
@@ -612,11 +641,7 @@ final class ScorSheetService
         return array_merge($context, [
             'event' => ['id' => (int) $event->id, 'name' => $event->name],
             'kind' => $kind,
-            'roles' => [
-                'referee' => $roles->allowsReferee(),
-                'jury' => $roles->allowsJury(),
-                'admin' => $roles->admin || $user->isFlowAdmin(),
-            ],
+            'roles' => $roles->view(),
             'locked' => $kind === 'referee' ? $this->isLocked($sheet) : (bool) ($sheet->completed ?? false),
             'confirmed_referee' => (bool) ($sheet->confirmed_referee ?? false),
             'confirmed_team' => (bool) ($sheet->confirmed_team ?? false),
@@ -626,8 +651,93 @@ final class ScorSheetService
             'core_points' => $scored['core_points'],
             'columns' => $kind === 'jury' ? FutureJuryCatalog::columns() : [],
             'core_values_note' => $kind === 'jury' ? FutureJuryCatalog::CORE_VALUES_NOTE : null,
+            'game_gracious' => $kind === 'jury' ? $this->gameGracious($eventId, (int) $context['team']['id']) : [],
             'sections' => array_values($sections),
         ]);
+    }
+
+    /**
+     * Freundliches Miteinander from the referee sheets, one entry per scoring round. The test round stays out.
+     *
+     * @return list<array{round: int, label: string, points: int|null}>
+     */
+    private function gameGracious(int $eventId, int $teamId): array
+    {
+        $planId = $this->planId($eventId);
+        if (!$planId) {
+            return [];
+        }
+        $formId = $this->forms->formId((int) $this->eventRow($eventId)->season, 'referee');
+        $item = FutureRefereeRules::graciousItem($this->forms->itemsFor($formId));
+        if (!$item) {
+            return [];
+        }
+        $config = $this->decode($item->config) ?? [];
+        $sheets = DB::table('scor_sheet')
+            ->where('event', $eventId)
+            ->where('kind', 'referee')
+            ->where('team', $teamId)
+            ->get()
+            ->keyBy('match');
+
+        $rounds = [];
+        foreach ($this->matches($planId) as $match) {
+            $round = (int) $match['round'];
+            $plays = ($match['team_1']['id'] ?? null) === $teamId || ($match['team_2']['id'] ?? null) === $teamId;
+            if ($round < 1 || !$plays) {
+                continue;
+            }
+            $raw = $this->answersOf($sheets[$match['id']] ?? null)['values'][(string) $item->id] ?? null;
+            $points = is_numeric($raw) ? $this->choicePoints($config, (int) $raw) : null;
+            if (isset($rounds[$round]) && ($points === null || $rounds[$round]['points'] !== null)) {
+                continue;
+            }
+            $rounds[$round] = ['round' => $round, 'label' => $match['round_label'], 'points' => $points];
+        }
+        ksort($rounds);
+
+        return array_values($rounds);
+    }
+
+    /**
+     * Feedback whose title names a rubric section ("Feedback Projekt") follows that section.
+     * Other feedback, such as Grundwerte, spans both and follows the whole sheet.
+     *
+     * @param  list<object>  $items
+     * @return array<int, int|null> feedback section id => rubric section id, or null for the whole sheet
+     */
+    private function feedbackFollows(array $items): array
+    {
+        $rubrics = [];
+        $feedback = [];
+        foreach ($items as $item) {
+            $title = mb_strtolower(trim((string) $item->section_title));
+            if ($item->section_kind === 'rubric') {
+                $rubrics[$title] = (int) $item->section_id;
+            } elseif ($item->section_kind === 'feedback') {
+                $feedback[(int) $item->section_id] = trim((string) preg_replace('/^feedback\s*/u', '', $title));
+            }
+        }
+
+        return array_map(fn (string $name) => $rubrics[$name] ?? null, $feedback);
+    }
+
+    /**
+     * @param  list<object>  $items
+     * @param  array<string, mixed>  $answers
+     * @return list<int> feedback section ids the team gets no feedback for
+     */
+    private function skippedFeedback(array $items, array $answers): array
+    {
+        $absent = $this->juryAbsent($items, $answers);
+        $skipped = [];
+        foreach ($this->feedbackFollows($items) as $sectionId => $rubricId) {
+            if ($rubricId === null ? $absent : in_array($rubricId, $answers['disabled_sections'], true)) {
+                $skipped[] = $sectionId;
+            }
+        }
+
+        return $skipped;
     }
 
     /**
@@ -680,14 +790,14 @@ final class ScorSheetService
     private function assertAnswered(int $formId, array $answers, bool $requireComments): void
     {
         $items = $this->forms->itemsFor($formId);
-        $absent = $this->juryAbsent($items, $answers);
+        $skipped = $this->skippedFeedback($items, $answers);
         foreach ($items as $item) {
             if (in_array((int) $item->section_id, $answers['disabled_sections'], true)) {
                 continue;
             }
             $id = (string) $item->id;
             if ($item->item_type === 'text') {
-                if ($absent) {
+                if (in_array((int) $item->section_id, $skipped, true)) {
                     continue;
                 }
                 if ($requireComments && mb_strlen(trim((string) ($answers['texts'][$id] ?? ''))) < 20) {
@@ -882,14 +992,6 @@ final class ScorSheetService
         }
 
         return $roles;
-    }
-
-    private function requireAdmin(User $user, int $eventId): void
-    {
-        $roles = $this->requireEvent($user, $eventId);
-        if (!$roles->admin && !$user->isFlowAdmin()) {
-            throw new ScorAccessException('Wieder öffnen geht nur mit dem Recht Veranstaltung-Admin.');
-        }
     }
 
     private function roles(User $user, int $eventId): ScorGrant

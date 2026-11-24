@@ -252,8 +252,11 @@ class PublicPlanService
 
     /**
      * Role-filtered schedule (port of zeitplan.cgi get_detailplan filters).
+     *
+     * $projectOntoEventDay=false compares against the real Berlin date and time,
+     * so visitors looking ahead of the event still see every upcoming item.
      */
-    public function getSchedule(int $planId, array $query): array
+    public function getSchedule(int $planId, array $query, bool $projectOntoEventDay = true): array
     {
         $plan = DB::table('plan')
             ->join('event', 'event.id', '=', 'plan.event')
@@ -274,11 +277,11 @@ class PublicPlanService
         $table = isset($query['table']) && $query['table'] !== '' ? (int) $query['table'] : null;
         $includeExpired = ! isset($query['expired']) || $query['expired'] === 'yes' || $query['expired'] === '1' || $query['expired'] === true;
 
-        // Wall clock on the event day (preview/live), matching PublicSchedule’s projection.
         $now = $this->resolveNow(
             $query['now'] ?? null,
             $plan->event_date ? (string) $plan->event_date : null,
             max(1, (int) ($plan->event_days ?? 1)),
+            $projectOntoEventDay,
         );
         $params = $this->planParameters($planId);
 
@@ -726,10 +729,11 @@ class PublicPlanService
 
     /**
      * Resolve “now” for expired filtering.
-     * Explicit ?now= wins. Otherwise use the shared event-day clock, which is
-     * also what the Cockpit timeshift tool compares against.
+     * Explicit ?now= wins. Otherwise use the shared event-day clock (also what
+     * the Cockpit timeshift tool compares against), or the real Berlin clock
+     * when not projecting onto the event day.
      */
-    private function resolveNow(?string $nowParam, ?string $eventDate = null, int $eventDays = 1): Carbon
+    private function resolveNow(?string $nowParam, ?string $eventDate = null, int $eventDays = 1, bool $projectOntoEventDay = true): Carbon
     {
         if ($nowParam && preg_match('/^(\d{2}|\d{4})-(\d{1,2})-(\d{1,2})[ T+](\d{1,2}):(\d{1,2})$/', urldecode(str_replace('+', ' ', $nowParam)), $m)) {
             $year = strlen($m[1]) === 2 ? '20'.$m[1] : $m[1];
@@ -739,6 +743,10 @@ class PublicPlanService
                 sprintf('%s-%02d-%02d %02d:%02d', $year, $m[2], $m[3], $m[4], $m[5]),
                 EventDayClock::TZ
             );
+        }
+
+        if (! $projectOntoEventDay) {
+            return now(EventDayClock::TZ);
         }
 
         return EventDayClock::pivot($eventDate, $eventDays);

@@ -284,6 +284,8 @@ class EventAccessService
                 'i.can_scor_referee',
                 'i.can_scor_jury',
                 'i.can_scor_admin',
+                'i.can_scor_head_referee',
+                'i.can_scor_head_judge',
                 'i.invited_at',
                 'i.expires_at',
                 'inviter.name as invited_by_name',
@@ -375,14 +377,15 @@ class EventAccessService
         $permissions = array_values(array_filter([
             $canFlow ? 'FLOW' : null,
             $roles->referee ? 'Schiri' : null,
+            $roles->headReferee ? 'Head Ref' : null,
             $roles->jury ? 'Jury' : null,
+            $roles->headJudge ? 'Head Judge' : null,
             $roles->admin ? 'Veranstaltung-Admin' : null,
         ]));
 
-        $loginUrl = rtrim((string) config('app.url'), '/');
-        if (!$canFlow && $roles->any()) {
-            $loginUrl .= '/scor';
-        }
+        $loginUrl = !$canFlow && $roles->any()
+            ? (string) config('app.score_url')
+            : rtrim((string) config('app.url'), '/');
 
         try {
             Mail::to($email)->send(new EventAccessInvitationMail(
@@ -485,6 +488,8 @@ class EventAccessService
             $row['can_scor_referee'] = $roles->referee;
             $row['can_scor_jury'] = $roles->jury;
             $row['can_scor_admin'] = $roles->admin;
+            $row['can_scor_head_referee'] = $roles->headReferee;
+            $row['can_scor_head_judge'] = $roles->headJudge;
         }
 
         DB::table('access_log')->insert($row);

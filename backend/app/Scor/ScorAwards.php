@@ -6,14 +6,20 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * One trophy among Champion, Projekt, Technisches Design and Grundwerte.
+ * One trophy among Champion, Silber and Bronze, and one among Projekt, Technisches Design and Grundwerte.
+ * Champion excludes Projekt, Technisches Design and Grundwerte; Silber and Bronze do not.
  * Spiel and Coaching may be added. A team holds at most three trophies.
  * Each judged category has at most four nominations.
+ * Champion, Silber and Bronze follow the overall ranking and need no nomination.
+ * Coaching may go to any team.
  */
 final class ScorAwards
 {
     /** @var list<string> */
-    public const JUDGED = ['champion', 'research', 'robotdesign', 'core_values'];
+    public const PODIUM = ['champion', 'silver', 'bronze'];
+
+    /** @var list<string> */
+    public const JUDGED = [...self::PODIUM, 'research', 'robotdesign', 'core_values'];
 
     /** @var list<string> */
     public const NOMINATED = ['research', 'robotdesign', 'core_values'];
@@ -41,9 +47,16 @@ final class ScorAwards
             if (count($categories) !== count(array_unique($categories))) {
                 throw new ScorAccessException('Dieselbe Auszeichnung steht bei einem Team nur einmal.', 422);
             }
-            $judged = array_values(array_intersect($categories, self::JUDGED));
+            $places = array_intersect($categories, self::PODIUM);
+            $judged = array_intersect($categories, self::NOMINATED);
+            if (count($places) > 1) {
+                throw new ScorAccessException('Ein Team bekommt nur einen Platz aus Champion, Silber und Bronze.', 422);
+            }
             if (count($judged) > 1) {
-                throw new ScorAccessException('Ein Team bekommt nur einen Pokal aus Champion, Projekt, Technisches Design und Grundwerten.', 422);
+                throw new ScorAccessException('Ein Team bekommt nur einen Pokal aus Projekt, Technisches Design und Grundwerten.', 422);
+            }
+            if (in_array('champion', $places, true) && $judged !== []) {
+                throw new ScorAccessException('Der Champion bekommt keinen Pokal aus Projekt, Technisches Design und Grundwerten.', 422);
             }
             if (count($categories) > 3) {
                 throw new ScorAccessException('Ein Team bekommt höchstens drei Pokale.', 422);
@@ -63,24 +76,15 @@ final class ScorAwards
         }
 
         $nominated = [];
-        $any = [];
         foreach ($nominations as $row) {
-            $team = (int) $row['team'];
-            $nominated[(string) $row['category']][$team] = true;
-            $any[$team] = true;
+            $nominated[(string) $row['category']][(int) $row['team']] = true;
         }
         foreach ($trophies as $row) {
             $team = (int) $row['team'];
             $category = (string) $row['category'];
-            if ($category === 'champion' && empty($any[$team])) {
-                throw new ScorAccessException('Der Champion braucht mindestens eine Nominierung.', 422);
-            }
             if (in_array($category, self::NOMINATED, true) && empty($nominated[$category][$team])) {
                 throw new ScorAccessException('Der Pokal geht nur an ein nominiertes Team.', 422);
             }
-        }
-        if ($coachingTeam && empty($any[$coachingTeam])) {
-            throw new ScorAccessException('Coaching geht nur an ein nominiertes Team.', 422);
         }
     }
 

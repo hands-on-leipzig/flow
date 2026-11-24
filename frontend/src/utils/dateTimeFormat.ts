@@ -75,22 +75,6 @@ export function parseBerlinWallTime(value: string | null | undefined): number | 
   return utc
 }
 
-/**
- * Aktuelle Uhrzeit (aus clockMs) auf den Kalendertag von dayFromMs legen.
- * Damit wandert die „Jetzt“-Marke im Tagesplan auch dann korrekt,
- * wenn der Veranstaltungstag nicht exakt „heute“ ist (Vorschau/Test).
- */
-export function projectClockOntoBerlinDay(clockMs: number, dayFromMs: number): number {
-  const day = berlinParts(dayFromMs)
-  const clock = berlinParts(clockMs)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return (
-      parseBerlinWallTime(
-          `${day.year}-${pad(day.month)}-${pad(day.day)} ${pad(clock.hour)}:${pad(clock.minute)}:${pad(clock.second)}`
-      ) ?? clockMs
-  )
-}
-
 /** Uhrzeit einer Berlin-Wandzeit / Instant in Europe/Berlin */
 export function formatBerlinTimeOnly(value: string | Date | number | null | undefined): string {
   if (value == null || value === '') return ''

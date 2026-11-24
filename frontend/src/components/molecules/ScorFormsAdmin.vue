@@ -118,7 +118,7 @@ onMounted(() => {
 <template>
   <div class="max-w-4xl space-y-4">
     <div>
-      <h2 class="text-xl font-bold">WISE Bögen</h2>
+      <h2 class="text-xl font-bold">SCORE Bögen</h2>
       <p class="text-sm text-[var(--color-text-muted)]">Future, einmal pro Saison. Jury: Zeilen und Beschriftungen. Schiri: zusätzlich die Art der Frage.</p>
     </div>
 
@@ -144,6 +144,10 @@ onMounted(() => {
       Stufen bleiben fest:
       <span v-for="column in columns" :key="column.value"> {{ column.value }} {{ column.label }}</span>
     </p>
+    <p class="text-xs text-[var(--color-text-muted)]">
+      Hinweise, Fragen, Gruppentexte und Zellen können Markdown: **fett**, *kursiv*, Zeilen mit - als Liste, Enter für eine neue Zeile, Leerzeile für einen neuen Absatz.
+      Einfaches HTML wie &lt;b&gt;, &lt;i&gt;, &lt;u&gt; und &lt;br&gt; geht auch.
+    </p>
     <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
     <p v-if="notice" class="text-sm text-[var(--color-text-muted)]">{{ notice }}</p>
 
@@ -156,7 +160,7 @@ onMounted(() => {
 
       <div v-for="(item, itemIndex) in section.items" :key="itemIndex" class="space-y-2 rounded-lg border border-[var(--color-border)] p-3">
         <div class="flex flex-wrap gap-2">
-          <input v-model="item.label" class="glass-input glass-input--sm flex-1" :placeholder="item.item_type === 'rubric' ? 'erste Zellbeschriftung' : 'Frage'"/>
+          <textarea v-model="item.label" class="glass-input glass-input--sm flex-1" rows="2" :placeholder="item.item_type === 'rubric' ? 'erste Zellbeschriftung' : 'Frage'"/>
           <select v-if="section.kind === 'mission'" v-model="item.item_type" class="glass-input glass-input--sm" @change="changeType(item, item.item_type)">
             <option value="yes_no">Ja/Nein</option>
             <option value="choice">Auswahl</option>
@@ -167,8 +171,8 @@ onMounted(() => {
 
         <template v-if="item.item_type === 'rubric'">
           <input v-model="item.config.group" class="glass-input glass-input--sm w-full" placeholder="Gruppe, z. B. Benennen"/>
-          <input v-model="item.config.group_hint" class="glass-input glass-input--sm w-full" placeholder="Gruppentext"/>
-          <input v-for="index in 3" :key="index" v-model="item.config.cells[index - 1]" class="glass-input glass-input--sm w-full" :placeholder="columns[index - 1]?.label || 'Beschriftung'"/>
+          <textarea v-model="item.config.group_hint" class="glass-input glass-input--sm w-full" rows="2" placeholder="Gruppentext"/>
+          <textarea v-for="index in 3" :key="index" v-model="item.config.cells[index - 1]" class="glass-input glass-input--sm w-full" rows="2" :placeholder="columns[index - 1]?.label || 'Beschriftung'"/>
           <label class="inline-flex items-center gap-1.5 text-sm">
             <input v-model="item.core_value" type="checkbox"/>
             zählt zu den Grundwerten

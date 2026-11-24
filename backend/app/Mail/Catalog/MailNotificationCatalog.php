@@ -90,7 +90,7 @@ class MailNotificationCatalog
                 status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new EventAccessInvitationMail(
                     eventName: self::SAMPLE_EVENT,
-                    permissions: ['FLOW', 'WISE'],
+                    permissions: ['FLOW', 'SCORE'],
                     loginUrl: 'https://flow.hands-on-technology.org',
                     expiresOn: '21.11.2026',
                 ),

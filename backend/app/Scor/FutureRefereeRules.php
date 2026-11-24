@@ -16,6 +16,8 @@ final class FutureRefereeRules
 
     public const PENALTY = 'Beeinträchtigungen in diesem Match';
 
+    public const GRACIOUS_SECTION = 'Freundliches Miteinander';
+
     /**
      * @param  iterable<object>  $items
      * @param  array{values: array<string, mixed>}  $answers
@@ -48,6 +50,20 @@ final class FutureRefereeRules
     public static function retreatItem(iterable $items): ?object
     {
         return self::find($items, self::RETREAT);
+    }
+
+    /**
+     * @param  iterable<object>  $items
+     */
+    public static function graciousItem(iterable $items): ?object
+    {
+        foreach ($items as $item) {
+            if ($item->item_type === 'choice' && trim((string) ($item->section_title ?? '')) === self::GRACIOUS_SECTION) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     /**

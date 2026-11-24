@@ -8,15 +8,34 @@ import ScorJurySheet from '@/components/scor/ScorJurySheet.vue'
 import ScorResults from '@/components/scor/ScorResults.vue'
 import HotGearLoader from '@/components/scor/HotGearLoader.vue'
 import {useWiseRoles} from '@/composables/useWiseRoles'
+import {scorePath} from '@/utils/scoreHost'
 
 const route = useRoute()
 const router = useRouter()
 const wiseRoles = useWiseRoles()
-const needsLogin = ref(!keycloak.authenticated && !localStorage.getItem('scor_token'))
+const needsLogin = ref(!keycloak.authenticated && !localTokenAlive())
 const localName = ref('')
 const localPassword = ref('')
 const localError = ref('')
 const localBusy = ref(false)
+
+function localTokenAlive() {
+  const token = localStorage.getItem('scor_token')
+  if (!token) return false
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    if (typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()) return true
+  } catch {
+    /* unreadable token */
+  }
+  dropLocalLogin()
+  return false
+}
+
+function dropLocalLogin() {
+  localStorage.removeItem('scor_token')
+  localStorage.removeItem('scor_user')
+}
 
 async function localLogin() {
   localError.value = ''
@@ -28,6 +47,7 @@ async function localLogin() {
     }, {skipAppRedirect: true})
     localStorage.removeItem('kc_token')
     localStorage.setItem('scor_token', data.token)
+    localStorage.setItem('scor_user', data.username)
     needsLogin.value = false
     await load()
   } catch (e: any) {
@@ -88,8 +108,8 @@ function writeSicht(id: number, sicht: string) {
   }
 }
 
-function resolveSicht(asked: string | null, roles?: {referee?: boolean, jury?: boolean}) {
-  if (asked === 'ergebnisse') return 'ergebnisse' as const
+function resolveSicht(asked: string | null, roles?: {referee?: boolean, jury?: boolean, results?: boolean}) {
+  if (asked === 'ergebnisse' && roles?.results) return 'ergebnisse' as const
   if (asked === 'jury' && roles?.jury) return 'jury' as const
   if (asked === 'schiri' && roles?.referee) return 'schiri' as const
   if (roles?.referee) return 'schiri' as const
@@ -173,8 +193,9 @@ async function load() {
     }
     const {data} = await axios.get(`/scor/events/${eventId.value}`)
     overview.value = data
-    const standings = await axios.get(`/scor/events/${eventId.value}/results`)
-    results.value = standings.data
+    results.value = data.roles?.results
+        ? (await axios.get(`/scor/events/${eventId.value}/results`)).data
+        : null
     stagePicks.value = [...(data.stage?.picks || [])]
     sheet.value = null
     const asked = typeof route.query.sicht === 'string' ? route.query.sicht : readSicht(eventId.value)
@@ -183,8 +204,15 @@ async function load() {
     wiseRoles.setRoles({
       referee: !!data.roles?.referee,
       jury: !!data.roles?.jury,
+      results: !!data.roles?.results,
     })
   } catch (e: any) {
+    if (e?.response?.status === 401 && !keycloak.authenticated) {
+      dropLocalLogin()
+      needsLogin.value = true
+      localError.value = 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.'
+      return
+    }
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen.'
   } finally {
     loading.value = false
@@ -196,7 +224,7 @@ watch(() => route.fullPath, () => {
 }, {immediate: true})
 
 function openEvent(id: number) {
-  void router.push(`/scor/${id}`)
+  void router.push(scorePath(`/${id}`))
 }
 
 function confirmOpen(done: boolean) {
@@ -206,12 +234,12 @@ function confirmOpen(done: boolean) {
 
 function openMatch(matchIdValue: number, teamIdValue: number, done = false) {
   if (!confirmOpen(done)) return
-  void router.push(`/scor/${eventId.value}/match/${matchIdValue}/team/${teamIdValue}`)
+  void router.push(scorePath(`/${eventId.value}/match/${matchIdValue}/team/${teamIdValue}`))
 }
 
 function openJury(teamIdValue: number, done = false) {
   if (!confirmOpen(done)) return
-  void router.push(`/scor/${eventId.value}/jury/${teamIdValue}`)
+  void router.push(scorePath(`/${eventId.value}/jury/${teamIdValue}`))
 }
 
 function isNoted(teamId: number) {
@@ -283,7 +311,7 @@ async function saveStage() {
 
 <template>
   <form v-if="needsLogin" class="mx-auto max-w-md space-y-4" @submit.prevent="localLogin">
-    <h1 class="text-2xl font-bold tracking-tight">WISE</h1>
+    <h1 class="text-2xl font-bold tracking-tight">SCORE</h1>
     <p class="text-lg text-[var(--color-text-muted)]">Mit dem Namen und Passwort von der Veranstaltung anmelden.</p>
     <label class="block text-lg">
       Name
@@ -305,7 +333,7 @@ async function saveStage() {
           v-if="sheet && eventId"
           type="button"
           class="wise-back wise-back--desk"
-          @click="router.push(juryRoute ? `/scor/${eventId}?sicht=jury` : `/scor/${eventId}`)"
+          @click="router.push(scorePath(juryRoute ? `/${eventId}?sicht=jury` : `/${eventId}`))"
       >
         <i class="bi bi-chevron-left" aria-hidden="true"/>
         {{ juryRoute ? 'Jury' : 'Schiri' }}
@@ -333,7 +361,7 @@ async function saveStage() {
     <template v-else-if="overview">
       <p v-if="!overview.has_plan" class="text-lg text-[var(--color-text-muted)]">Für diese Veranstaltung gibt es noch keinen Matchplan.</p>
 
-      <ScorResults v-if="tab === 'ergebnisse'" :results="results" @saved="results = $event"/>
+      <ScorResults v-if="tab === 'ergebnisse' && results" :results="results" @saved="results = $event"/>
 
       <div v-else-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
         <section v-if="overview.groups?.referee?.length" class="scor-assign" aria-label="Schiri-Zuteilung">
@@ -385,7 +413,7 @@ async function saveStage() {
       </div>
 
       <button
-          v-if="tab === 'jury' && overview.roles.admin && overview.stage"
+          v-if="tab === 'jury' && overview.roles.stage && overview.stage"
           type="button"
           class="glass-btn-secondary wise-stage-open"
           @click="openStage"

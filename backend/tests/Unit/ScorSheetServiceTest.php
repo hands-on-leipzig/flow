@@ -187,6 +187,19 @@ class ScorSheetServiceTest extends TestCase
         $this->assertCount(2, $saved['awards']['nominations']);
     }
 
+    public function test_coaching_goes_to_any_team_without_nomination(): void
+    {
+        $this->createAwardTable();
+
+        $saved = $this->sheets->saveAwards($this->user(), 1, [
+            'trophies' => [],
+            'nominations' => [],
+            'coaching' => 2,
+        ]);
+
+        $this->assertSame(2, $saved['awards']['coaching']);
+    }
+
     public function test_closed_event_blocks_sheets_and_playground_is_wiped_the_day_before(): void
     {
         Schema::create('scor_event', function (Blueprint $table) {
@@ -565,7 +578,167 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame(0, $done['points']);
     }
 
+    public function test_feedback_of_a_skipped_category_is_not_required_and_not_kept(): void
+    {
+        $sheet = $this->sheets->jurySheet($this->user(), 1, 1);
+        $byTitle = collect($sheet['sections'])->keyBy('title');
+        $project = $byTitle['Projekt'];
+        $design = $byTitle['Technisches Design'];
+        $this->assertSame($project['id'], $byTitle['Feedback Projekt']['follows']);
+        $this->assertSame($design['id'], $byTitle['Feedback Technisches Design']['follows']);
+        $this->assertNull($byTitle['Feedback Grundwerte']['follows']);
+
+        $values = [];
+        foreach ($design['items'] as $item) {
+            $values[$item['id']] = 2;
+        }
+        $texts = [];
+        foreach (['Feedback Projekt', 'Feedback Technisches Design', 'Feedback Grundwerte'] as $title) {
+            foreach ($byTitle[$title]['items'] as $item) {
+                $texts[$item['id']] = $title === 'Feedback Projekt' ? 'kurz' : 'Konstruktives Feedback für das Team.';
+            }
+        }
+        $this->sheets->saveJury($this->user(), 1, 1, [
+            'values' => $values,
+            'texts' => $texts,
+            'disabled_sections' => [$project['id']],
+        ]);
+        $done = $this->sheets->completeJury($this->user(), 1, 1);
+
+        $this->assertTrue($done['completed']);
+        $kept = collect($done['sections'])->keyBy('title');
+        foreach ($kept['Feedback Projekt']['items'] as $item) {
+            $this->assertNull($item['value']);
+        }
+        foreach ($kept['Feedback Grundwerte']['items'] as $item) {
+            $this->assertSame('Konstruktives Feedback für das Team.', $item['value']);
+        }
+    }
+
+    public function test_jury_sheet_shows_gracious_points_per_scoring_round(): void
+    {
+        DB::table('match')->insert([
+            'id' => 5,
+            'plan' => 1,
+            'first_program' => FirstProgram::FUTURE_8->value,
+            'round' => 0,
+            'match_no' => 1,
+            'table_1' => 1,
+            'table_2' => 2,
+            'table_1_team' => 1,
+            'table_2_team' => 2,
+        ]);
+        $referee = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $gracious = collect($referee['sections'])->firstWhere('title', 'Freundliches Miteinander')['items'][0]['id'];
+        foreach ([1 => 3, 5 => 1] as $matchId => $option) {
+            DB::table('scor_sheet')->insert(array_merge($this->refereeRow(1, $matchId, 0, false), [
+                'answers' => json_encode(['values' => [(string) $gracious => $option]]),
+            ]));
+        }
+
+        $sheet = $this->sheets->jurySheet($this->user(), 1, 1);
+
+        $this->assertSame([['round' => 1, 'label' => 'Runde 1', 'points' => 4]], $sheet['game_gracious']);
+    }
+
+    public function test_results_and_reopening_follow_the_head_rights(): void
+    {
+        DB::table('event_user_access')->where('user', 1)->update(['can_scor_admin' => false]);
+
+        $this->assertFalse($this->sheets->overview($this->user(), 1)['roles']['results']);
+        try {
+            $this->sheets->results($this->user(), 1);
+            $this->fail('Schiri and Jury must not see the results.');
+        } catch (\App\Scor\ScorAccessException) {
+        }
+
+        DB::table('event_user_access')->where('user', 1)->update(['can_scor_head_judge' => true]);
+        $roles = $this->sheets->overview($this->user(), 1)['roles'];
+        $this->assertTrue($roles['results']);
+        $this->assertTrue($roles['stage']);
+        $this->assertFalse($roles['admin']);
+        $this->assertSame(1, $this->sheets->results($this->user(), 1)['event']['id']);
+        $this->assertFalse($this->sheets->reopenJury($this->user(), 1, 1)['completed']);
+
+        $this->expectException(\App\Scor\ScorAccessException::class);
+        $this->sheets->reopenReferee($this->user(), 1, 1, 1);
+    }
+
     public function test_results_follow_the_contao_ranking(): void
+    {
+        $this->seedContaoRanking();
+
+        $results = $this->sheets->results($this->user(), 1);
+        $byId = collect($results['teams'])->keyBy('id');
+
+        $this->assertSame([1, 2], array_column($results['rounds'], 'round'));
+        $this->assertSame([1, 2, 3], array_column($results['teams'], 'id'));
+
+        $this->assertEquals(20, $byId[1]['robot']);
+        $this->assertEquals(15, $byId[2]['robot']);
+        $this->assertEquals(10, $byId[3]['robot']);
+        $this->assertSame(10, $byId[1]['rounds'][0]['points']);
+        $this->assertTrue($byId[1]['rounds'][0]['confirmed']);
+        $this->assertSame(30, $byId[1]['rounds'][1]['points']);
+        $this->assertFalse($byId[1]['rounds'][1]['confirmed']);
+        $this->assertNull($byId[3]['rounds'][1]);
+
+        $this->assertSame(1, $byId[1]['robot_rank']);
+        $this->assertSame(2, $byId[2]['robot_rank']);
+        $this->assertSame(3, $byId[3]['robot_rank']);
+
+        $this->assertSame(7, $byId[1]['research']);
+        $this->assertSame(2, $byId[1]['research_rank']);
+        $this->assertSame(8, $byId[2]['research']);
+        $this->assertSame(1, $byId[2]['research_rank']);
+        $this->assertSame(3, $byId[3]['research_rank']);
+
+        $this->assertSame(6, $byId[1]['robotdesign']);
+        $this->assertSame(1, $byId[1]['robotdesign_rank']);
+        $this->assertSame(2, $byId[2]['robotdesign_rank']);
+        $this->assertSame(2, $byId[3]['robotdesign_rank']);
+
+        $this->assertSame(5, $byId[1]['core_values']);
+        $this->assertSame(1, $byId[1]['core_values_rank']);
+        $this->assertSame(1, $byId[2]['core_values_rank']);
+        $this->assertSame(3, $byId[3]['core_values_rank']);
+
+        $this->assertSame(5, $byId[1]['champion']);
+        $this->assertSame(6, $byId[2]['champion']);
+        $this->assertSame(10, $byId[3]['champion']);
+        $this->assertSame(1, $byId[1]['champion_rank']);
+        $this->assertSame(2, $byId[2]['champion_rank']);
+        $this->assertSame(3, $byId[3]['champion_rank']);
+    }
+
+    public function test_champion_silver_and_bronze_follow_the_overall_ranking(): void
+    {
+        $this->seedContaoRanking();
+        $this->createAwardTable();
+
+        try {
+            $this->sheets->saveAwards($this->user(), 1, [
+                'trophies' => [['team' => 3, 'category' => 'silver']],
+                'nominations' => [],
+            ]);
+            $this->fail('Silber für den Dritten der Gesamtwertung muss scheitern.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(422, $e->status);
+        }
+
+        $saved = $this->sheets->saveAwards($this->user(), 1, [
+            'trophies' => [
+                ['team' => 1, 'category' => 'champion'],
+                ['team' => 2, 'category' => 'silver'],
+                ['team' => 3, 'category' => 'bronze'],
+            ],
+            'nominations' => [],
+        ]);
+
+        $this->assertCount(3, $saved['awards']['trophies']);
+    }
+
+    private function seedContaoRanking(): void
     {
         DB::table('team')->insert([
             'id' => 3,
@@ -646,48 +819,6 @@ class ScorSheetServiceTest extends TestCase
         $this->saveJuryScores(1, $research, $design, 4, 3, 4, 2);
         $this->saveJuryScores(2, $research, $design, 4, 4, 4, 1);
         $this->saveJuryScores(3, $research, $design, 2, 2, 3, 2);
-
-        $results = $this->sheets->results($this->user(), 1);
-        $byId = collect($results['teams'])->keyBy('id');
-
-        $this->assertSame([1, 2], array_column($results['rounds'], 'round'));
-        $this->assertSame([1, 2, 3], array_column($results['teams'], 'id'));
-
-        $this->assertEquals(20, $byId[1]['robot']);
-        $this->assertEquals(15, $byId[2]['robot']);
-        $this->assertEquals(10, $byId[3]['robot']);
-        $this->assertSame(10, $byId[1]['rounds'][0]['points']);
-        $this->assertTrue($byId[1]['rounds'][0]['confirmed']);
-        $this->assertSame(30, $byId[1]['rounds'][1]['points']);
-        $this->assertFalse($byId[1]['rounds'][1]['confirmed']);
-        $this->assertNull($byId[3]['rounds'][1]);
-
-        $this->assertSame(1, $byId[1]['robot_rank']);
-        $this->assertSame(2, $byId[2]['robot_rank']);
-        $this->assertSame(3, $byId[3]['robot_rank']);
-
-        $this->assertSame(7, $byId[1]['research']);
-        $this->assertSame(2, $byId[1]['research_rank']);
-        $this->assertSame(8, $byId[2]['research']);
-        $this->assertSame(1, $byId[2]['research_rank']);
-        $this->assertSame(3, $byId[3]['research_rank']);
-
-        $this->assertSame(6, $byId[1]['robotdesign']);
-        $this->assertSame(1, $byId[1]['robotdesign_rank']);
-        $this->assertSame(2, $byId[2]['robotdesign_rank']);
-        $this->assertSame(2, $byId[3]['robotdesign_rank']);
-
-        $this->assertSame(5, $byId[1]['core_values']);
-        $this->assertSame(1, $byId[1]['core_values_rank']);
-        $this->assertSame(1, $byId[2]['core_values_rank']);
-        $this->assertSame(3, $byId[3]['core_values_rank']);
-
-        $this->assertSame(5, $byId[1]['champion']);
-        $this->assertSame(6, $byId[2]['champion']);
-        $this->assertSame(10, $byId[3]['champion']);
-        $this->assertSame(1, $byId[1]['champion_rank']);
-        $this->assertSame(2, $byId[2]['champion_rank']);
-        $this->assertSame(3, $byId[3]['champion_rank']);
     }
 
     private function createAwardTable(): void
@@ -828,6 +959,8 @@ class ScorSheetServiceTest extends TestCase
             $table->boolean('can_scor_referee')->default(false);
             $table->boolean('can_scor_jury')->default(false);
             $table->boolean('can_scor_admin')->default(false);
+            $table->boolean('can_scor_head_referee')->default(false);
+            $table->boolean('can_scor_head_judge')->default(false);
         });
         Schema::create('event_user_access', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
@@ -838,6 +971,8 @@ class ScorSheetServiceTest extends TestCase
             $table->boolean('can_scor_referee')->default(false);
             $table->boolean('can_scor_jury')->default(false);
             $table->boolean('can_scor_admin')->default(false);
+            $table->boolean('can_scor_head_referee')->default(false);
+            $table->boolean('can_scor_head_judge')->default(false);
         });
         Schema::create('plan', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();

@@ -3,15 +3,13 @@ import {onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ScorLocalAccounts from '@/components/scor/ScorLocalAccounts.vue'
+import {SCOR_RIGHTS, hasScorRight, noScorRights, scorRightLabels, type ScorRightKey, type ScorRights} from '@/constants/scorRights'
 
 defineOptions({name: 'ScorAdmin'})
 
-type Permissions = {
+type Permissions = ScorRights & {
   can_flow: boolean
   can_scor?: boolean
-  can_scor_referee?: boolean
-  can_scor_jury?: boolean
-  can_scor_admin?: boolean
 }
 
 type ScorEvent = {
@@ -61,9 +59,7 @@ const detailError = ref('')
 
 const inviteEmail = ref('')
 const inviteFlow = ref(true)
-const inviteReferee = ref(false)
-const inviteJury = ref(false)
-const inviteAdmin = ref(false)
+const inviteRights = ref(noScorRights())
 const inviteBusy = ref(false)
 const notice = ref('')
 
@@ -87,12 +83,7 @@ function actionLabel(action: string) {
 }
 
 function permissionText(entry: Permissions) {
-  return [
-    entry.can_flow && 'FLOW',
-    entry.can_scor_referee && 'Schiri',
-    entry.can_scor_jury && 'Jury',
-    entry.can_scor_admin && 'Veranstaltung-Admin',
-  ].filter(Boolean).join(', ')
+  return [entry.can_flow && 'FLOW', ...scorRightLabels(entry)].filter(Boolean).join(', ')
 }
 
 async function loadEvents() {
@@ -155,8 +146,8 @@ async function loadHelpers() {
 }
 
 async function grantHelper(helper: {id: number, name: string}) {
-  if (!selectedId.value || (!inviteReferee.value && !inviteJury.value && !inviteAdmin.value)) {
-    notice.value = 'Bitte mindestens Schiri, Jury oder Veranstaltung-Admin wählen.'
+  if (!selectedId.value || !hasScorRight(inviteRights.value)) {
+    notice.value = 'Bitte mindestens eine SCORE-Berechtigung wählen.'
     return
   }
   inviteBusy.value = true
@@ -164,9 +155,7 @@ async function grantHelper(helper: {id: number, name: string}) {
   try {
     await axios.post(`/admin/scor/events/${selectedId.value}/helpers`, {
       volunteer_person: helper.id,
-      can_scor_referee: inviteReferee.value,
-      can_scor_jury: inviteJury.value,
-      can_scor_admin: inviteAdmin.value,
+      ...inviteRights.value,
     })
     notice.value = `${helper.name} hat jetzt Zugang über das HERO-Konto.`
     await loadDetail()
@@ -178,7 +167,7 @@ async function grantHelper(helper: {id: number, name: string}) {
 }
 
 async function invite() {
-  if (!selectedId.value || !inviteEmail.value.includes('@') || (!inviteFlow.value && !inviteReferee.value && !inviteJury.value && !inviteAdmin.value)) {
+  if (!selectedId.value || !inviteEmail.value.includes('@') || (!inviteFlow.value && !hasScorRight(inviteRights.value))) {
     notice.value = 'Bitte E-Mail-Adresse und mindestens eine Berechtigung wählen.'
     return
   }
@@ -189,9 +178,7 @@ async function invite() {
       event_id: selectedId.value,
       email: inviteEmail.value.trim(),
       can_flow: inviteFlow.value,
-      can_scor_referee: inviteReferee.value,
-      can_scor_jury: inviteJury.value,
-      can_scor_admin: inviteAdmin.value,
+      ...inviteRights.value,
     })
     users.value = data.users || []
     invitations.value = data.invitations || []
@@ -207,9 +194,9 @@ async function invite() {
   }
 }
 
-async function setPermission(target: {user_id: number} | {invitation_id: number}, current: Permissions, key: keyof Permissions, value: boolean) {
+async function setPermission(target: {user_id: number} | {invitation_id: number}, current: Permissions, key: 'can_flow' | ScorRightKey, value: boolean) {
   const next = {...current, [key]: value}
-  if (!next.can_flow && !next.can_scor_referee && !next.can_scor_jury && !next.can_scor_admin) {
+  if (!next.can_flow && !hasScorRight(next)) {
     notice.value = 'Mindestens eine Berechtigung muss bleiben.'
     await loadDetail()
     return
@@ -252,9 +239,9 @@ onMounted(async () => {
 <template>
   <div class="space-y-6 max-w-5xl">
     <div>
-      <h2 class="text-xl font-bold">WISE</h2>
+      <h2 class="text-xl font-bold">SCORE</h2>
       <p class="mt-1 text-sm text-gray-600">
-        Zugänge pro Veranstaltung. FLOW ist die Planung, WISE die Auswertung.
+        Zugänge pro Veranstaltung. FLOW ist die Planung, SCORE die Auswertung.
         Kontaktpersonen aus Draht haben beides für alle Veranstaltungen ihres Regionalpartners.
       </p>
     </div>
@@ -304,14 +291,8 @@ onMounted(async () => {
           <label class="inline-flex items-center gap-1.5 text-sm">
             <input v-model="inviteFlow" type="checkbox"/> FLOW
           </label>
-          <label class="inline-flex items-center gap-1.5 text-sm">
-            <input v-model="inviteReferee" type="checkbox"/> Schiri
-          </label>
-          <label class="inline-flex items-center gap-1.5 text-sm">
-            <input v-model="inviteJury" type="checkbox"/> Jury
-          </label>
-          <label class="inline-flex items-center gap-1.5 text-sm">
-            <input v-model="inviteAdmin" type="checkbox"/> Veranstaltung-Admin
+          <label v-for="right in SCOR_RIGHTS" :key="right.key" class="inline-flex items-center gap-1.5 text-sm">
+            <input v-model="inviteRights[right.key]" type="checkbox"/> {{ right.label }}
           </label>
           <button
               type="button"
@@ -356,17 +337,9 @@ onMounted(async () => {
                 <input type="checkbox" :checked="row.can_flow" @change="setPermission({user_id: row.user_id}, row, 'can_flow', ($event.target as HTMLInputElement).checked)"/>
                 FLOW
               </label>
-              <label class="inline-flex items-center gap-1.5">
-                <input type="checkbox" :checked="row.can_scor_referee" @change="setPermission({user_id: row.user_id}, row, 'can_scor_referee', ($event.target as HTMLInputElement).checked)"/>
-                Schiri
-              </label>
-              <label class="inline-flex items-center gap-1.5">
-                <input type="checkbox" :checked="row.can_scor_jury" @change="setPermission({user_id: row.user_id}, row, 'can_scor_jury', ($event.target as HTMLInputElement).checked)"/>
-                Jury
-              </label>
-              <label class="inline-flex items-center gap-1.5">
-                <input type="checkbox" :checked="row.can_scor_admin" @change="setPermission({user_id: row.user_id}, row, 'can_scor_admin', ($event.target as HTMLInputElement).checked)"/>
-                Veranstaltung-Admin
+              <label v-for="right in SCOR_RIGHTS" :key="right.key" class="inline-flex items-center gap-1.5">
+                <input type="checkbox" :checked="!!row[right.key]" @change="setPermission({user_id: row.user_id}, row, right.key, ($event.target as HTMLInputElement).checked)"/>
+                {{ right.label }}
               </label>
               <button type="button" class="text-red-700" @click="revoke({user_id: row.user_id})">Entfernen</button>
             </div>
@@ -385,17 +358,9 @@ onMounted(async () => {
                 <input type="checkbox" :checked="inv.can_flow" @change="setPermission({invitation_id: inv.id}, inv, 'can_flow', ($event.target as HTMLInputElement).checked)"/>
                 FLOW
               </label>
-              <label class="inline-flex items-center gap-1.5">
-                <input type="checkbox" :checked="inv.can_scor_referee" @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_referee', ($event.target as HTMLInputElement).checked)"/>
-                Schiri
-              </label>
-              <label class="inline-flex items-center gap-1.5">
-                <input type="checkbox" :checked="inv.can_scor_jury" @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_jury', ($event.target as HTMLInputElement).checked)"/>
-                Jury
-              </label>
-              <label class="inline-flex items-center gap-1.5">
-                <input type="checkbox" :checked="inv.can_scor_admin" @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_admin', ($event.target as HTMLInputElement).checked)"/>
-                Veranstaltung-Admin
+              <label v-for="right in SCOR_RIGHTS" :key="right.key" class="inline-flex items-center gap-1.5">
+                <input type="checkbox" :checked="!!inv[right.key]" @change="setPermission({invitation_id: inv.id}, inv, right.key, ($event.target as HTMLInputElement).checked)"/>
+                {{ right.label }}
               </label>
               <button type="button" class="text-red-700" @click="revoke({invitation_id: inv.id})">Zurückziehen</button>
             </div>

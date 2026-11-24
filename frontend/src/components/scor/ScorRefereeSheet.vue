@@ -2,6 +2,8 @@
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import {useWiseSync} from '@/composables/useWiseSync'
 import {useRouter} from 'vue-router'
+import {scorePath} from '@/utils/scoreHost'
+import ScorText from '@/components/scor/ScorText.vue'
 import axios from 'axios'
 
 const props = defineProps<{sheet: any}>()
@@ -279,7 +281,20 @@ function url() {
 }
 
 function leave() {
-  void router.push(`/scor/${props.sheet.event.id}`)
+  void router.push(scorePath(`/${props.sheet.event.id}`))
+}
+
+async function reopen() {
+  busy.value = true
+  error.value = ''
+  try {
+    const {data} = await axios.post(`${url()}/reopen`)
+    emit('update', data)
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Wieder öffnen fehlgeschlagen.'
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 
@@ -324,10 +339,10 @@ function leave() {
       </button>
       <div class="scor-acc__body" :class="{'is-open': isOpen(section.id)}">
       <div class="scor-acc__inner">
-      <p v-if="section.note" class="scor-block__note">{{ section.note }}</p>
+      <ScorText v-if="section.note" tag="div" class="scor-block__note" :text="section.note"/>
       <div v-for="item in section.items" :key="item.id" class="scor-q" :class="{'is-missing': missing.includes(String(item.id)), 'is-done': isAnswered(item, values[String(item.id)])}">
         <div class="scor-q__top">
-          <p class="scor-q__label">{{ item.label }}</p>
+          <ScorText tag="div" class="scor-q__label" :text="item.label"/>
           <p v-if="item.item_type === 'count'" class="scor-q__hint">
             <template v-if="countMax(item) == null || countIsScale(item)">je {{ item.config?.points_each ?? 0 }}</template>
             <template v-else>max. {{ countMax(item) }}, je {{ item.config?.points_each ?? 0 }}</template>
@@ -367,7 +382,7 @@ function leave() {
               :disabled="sheet.locked"
               @click="choose(String(item.id), index)"
           >
-            <span>{{ option.label }}</span>
+            <ScorText :text="option.label"/>
             <span class="scor-choice__points">{{ option.zeros_match ? 'Match 0' : option.points }}</span>
           </button>
         </div>
@@ -418,6 +433,7 @@ function leave() {
           </div>
         </div>
         <button v-if="sheet.locked" type="button" class="glass-btn-accent scor-sheet__leave" @click="leave">zurück zur Übersicht</button>
+        <button v-if="sheet.locked && sheet.roles?.head_referee" type="button" class="glass-btn-secondary scor-sheet__leave" :disabled="busy || sheet.lifecycle?.closed" @click="reopen">Wieder öffnen</button>
       </div>
   </div>
 </template>

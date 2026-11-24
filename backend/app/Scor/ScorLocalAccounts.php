@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Event accounts such as "Schiri 1". They stay in SCOR and are not HERO users.
+ * Event accounts such as "Schiri 1". They stay in SCORE and are not HERO users.
  */
 final class ScorLocalAccounts
 {
@@ -83,6 +83,8 @@ final class ScorLocalAccounts
                 'g.can_scor_referee',
                 'g.can_scor_jury',
                 'g.can_scor_admin',
+                'g.can_scor_head_referee',
+                'g.can_scor_head_judge',
             ])
             ->map(fn ($row) => [
                 'id' => (int) $row->id,
@@ -90,6 +92,8 @@ final class ScorLocalAccounts
                 'can_scor_referee' => (bool) $row->can_scor_referee,
                 'can_scor_jury' => (bool) $row->can_scor_jury,
                 'can_scor_admin' => (bool) $row->can_scor_admin,
+                'can_scor_head_referee' => (bool) $row->can_scor_head_referee,
+                'can_scor_head_judge' => (bool) $row->can_scor_head_judge,
             ])
             ->all();
     }

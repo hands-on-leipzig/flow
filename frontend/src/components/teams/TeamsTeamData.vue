@@ -11,15 +11,12 @@ import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffing
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
-import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
-import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
-import {formatJuryCell} from '@/utils/teamJury'
 import {
   isTeamDataUnconfirmed,
   isTeamParticipantListIncomplete,
@@ -37,10 +34,6 @@ defineOptions({name: 'TeamsTeamData'})
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
-const publicEventUrl = computed(() => {
-  const link = (eventStore.selectedEvent as {link?: string | null} | null)?.link
-  return typeof link === 'string' ? link.trim() : ''
-})
 
 const teams = ref<TeamDataRow[]>([])
 const columns = ref<TeamDataColumn[]>([])
@@ -59,7 +52,6 @@ const deadlineSaving = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
 const sortKey = ref<'team_number_hot' | 'name' | 'organization'>('name')
-const planById = ref<Record<number, {plan: number | null, noshow: boolean, jury: string}>>({})
 const sortDir = ref<'asc' | 'desc'>('asc')
 
 const countEditTeam = ref<TeamDataRow | null>(null)
@@ -99,15 +91,7 @@ const filteredTeams = computed(() => {
     return []
   }
 
-  let rows = [...teams.value].map((row) => {
-    const plan = planById.value[row.id]
-    return {
-      ...row,
-      plan_number: plan?.plan ?? row.team_number_plan,
-      noshow: plan?.noshow ?? false,
-      jury_label: plan?.jury ?? '–',
-    }
-  })
+  let rows = [...teams.value]
   rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
 
   const query = nameFilter.value.trim().toLowerCase()
@@ -138,12 +122,9 @@ const filteredTeams = computed(() => {
     rows = rows.filter((row) => isTeamDataUnconfirmed(row))
   }
 
-  const programOrder = new Map(programFilters.value.map((program, index) => [Number(program.first_program), index]))
   const dir = sortDir.value === 'asc' ? 1 : -1
   const key = sortKey.value
   rows.sort((a, b) => {
-    const programDelta = (programOrder.get(Number(a.first_program)) ?? 99) - (programOrder.get(Number(b.first_program)) ?? 99)
-    if (programDelta !== 0) return programDelta
     if (key === 'team_number_hot') {
       const an = a.team_number_hot
       const bn = b.team_number_hot
@@ -263,7 +244,6 @@ async function load() {
       setMealOptions(data.meal_options)
     }
     syncProgramFilters()
-    await attachPlan()
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
@@ -273,43 +253,6 @@ async function load() {
 
 const answersDeadline = ref('')
 const answersDeadlineDraft = ref('')
-
-async function attachPlan() {
-  if (!eventId.value) return
-  const next: Record<number, {plan: number | null, noshow: boolean, jury: string}> = {}
-  await Promise.all(programFilters.value.map(async (program) => {
-    try {
-      const {data} = await axios.get(`/events/${eventId.value}/teams`, {
-        params: {program: programSlug(program.name), sort: 'plan_order'},
-      })
-      const list = Array.isArray(data) ? data : (data?.teams ?? [])
-      for (const team of list) {
-        next[Number(team.id)] = {
-          plan: team.team_number_plan ?? null,
-          noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1',
-          jury: formatJuryCell(String(program.name ?? ''), team.jury_lane),
-        }
-      }
-    } catch {
-      // A program without a plan still shows its team data.
-    }
-  }))
-  planById.value = next
-}
-
-async function onNoshow(team: TeamDataRow, noshow: boolean) {
-  if (!eventId.value) return
-  planById.value = {
-    ...planById.value,
-    [team.id]: {...(planById.value[team.id] ?? {plan: team.plan_number ?? null, jury: team.jury_label ?? '–', noshow}), noshow},
-  }
-  try {
-    await axios.put(`/events/${eventId.value}/teams`, {id: team.id, noshow: noshow ? 1 : 0})
-  } catch (e: unknown) {
-    showGlassToast(apiError(e, 'No-show konnte nicht gespeichert werden'), 'error')
-    await attachPlan()
-  }
-}
 
 const deadlineUnchanged = computed(() =>
   (deadlineDraft.value === '' || deadlineDraft.value === deadline.value)
@@ -379,7 +322,7 @@ onActivated(() => {
     <header class="vol-page__header">
       <div>
         <div class="vol-page__title-row">
-          <h1 class="vol-page__title">Teams</h1>
+          <h1 class="vol-page__title">Teamdaten</h1>
           <ScreenHelpButton/>
         </div>
         <p class="vol-page__sub">Bitte prüfe, ob die Teamdaten vollständig sind.</p>
@@ -422,8 +365,8 @@ onActivated(() => {
 
     <NoticePane/>
 
-    <div class="teams-overview">
-      <section class="glass-card liquid-surface-inner vol-sidebar-tile vol-roster-publish">
+    <div class="vol-roster-toolbar vol-roster-toolbar--solo">
+      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
         <div class="vol-roster-publish__row">
           <span class="vol-roster-publish__label">Dateneingabe durch Coaches</span>
           <ToggleSwitch
@@ -433,40 +376,28 @@ onActivated(() => {
           />
         </div>
         <p class="glass-settings-hint vol-roster-publish__hint">
-          Dateneingabe erfolgt im Coach-Login in JOIN.
-          <a
-              v-if="publicEventUrl"
-              :href="publicEventUrl"
-              class="vol-roster-publish__link"
-              target="_blank"
-              rel="noopener"
-          >Die öffentliche Seite des Events</a><template v-else>Die öffentliche Seite des Events</template>
-          führt dahin, wenn du sie einschaltest.
+          Coach:innen können über die öffentliche Seite Daten zu ihren Teams eingeben.
         </p>
-        <div class="vol-roster-publish__deadlines">
-          <div class="vol-roster-publish__deadline">
-            <label for="team-data-deadline">Frist Teilnehmende</label>
-            <input
-                id="team-data-deadline"
-                v-model="deadlineDraft"
-                type="date"
-                class="glass-input glass-input--sm vol-roster-publish__date"
-                :disabled="!eventId || deadlineSaving"
-            >
-          </div>
-          <div class="vol-roster-publish__deadline">
-            <label for="answers-deadline">Frist übrige Angaben</label>
-            <input
-                id="answers-deadline"
-                v-model="answersDeadlineDraft"
-                type="date"
-                class="glass-input glass-input--sm vol-roster-publish__date"
-                :disabled="!eventId || deadlineSaving"
-            >
-          </div>
+        <div class="vol-roster-publish__row">
+          <label class="vol-roster-publish__label" for="team-data-deadline">Frist Teilnehmende</label>
+          <input
+              id="team-data-deadline"
+              v-model="deadlineDraft"
+              type="date"
+              class="glass-input glass-input--sm"
+              :disabled="!eventId || deadlineSaving"
+          >
+          <label class="vol-roster-publish__label" for="answers-deadline">Frist übrige Angaben</label>
+          <input
+              id="answers-deadline"
+              v-model="answersDeadlineDraft"
+              type="date"
+              class="glass-input glass-input--sm"
+              :disabled="!eventId || deadlineSaving"
+          >
           <button
               type="button"
-              class="glass-btn-secondary vol-roster-publish__deadline-save"
+              class="glass-btn-secondary"
               :disabled="!eventId || deadlineSaving || deadlineUnchanged"
               @click="saveDeadline"
           >
@@ -477,8 +408,6 @@ onActivated(() => {
           Teilnehmende: Name, Geschlecht, Geburtsdatum. Übrige Angaben: Foto und Essen pro Person. Gleiches Datum ist der Standard. Eine Änderung der Teilnehmenden-Frist geht an info@hands-on-technology.org und an Coaches, die „Teilnehmende komplett“ noch nicht bestätigt haben.
         </p>
       </section>
-      <TeamsRegistrationStats/>
-      <TeamsMultiTeamCoaches/>
     </div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
@@ -588,7 +517,6 @@ onActivated(() => {
           @toggle-sort="toggleSort"
           @open-count="openCountPopover"
           @updated="onTeamUpdated"
-          @noshow="onNoshow"
       />
     </section>
 
@@ -625,65 +553,4 @@ onActivated(() => {
 
   </div>
 </template>
-
-<style scoped>
-.teams-overview {
-  display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
-
-.teams-overview :deep(.glass-card) {
-  flex: 1 1 0;
-  min-width: 0;
-  margin: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
-}
-
-.teams-overview :deep(.vol-sidebar-heading) {
-  margin-bottom: 0.45rem;
-}
-
-.teams-overview :deep(.vol-roster-publish__deadlines) {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.45rem;
-  margin-top: 0.65rem;
-}
-
-.teams-overview :deep(.vol-roster-publish__deadline) {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.65rem;
-}
-
-.teams-overview :deep(input.vol-roster-publish__date.glass-input) {
-  width: 9.5rem;
-  min-width: 9.5rem;
-  max-width: 9.5rem;
-  height: 1.85rem;
-  min-height: 1.85rem;
-  max-height: 1.85rem;
-  flex: none;
-  padding: 0 0.35rem 0 0.5rem;
-}
-
-.teams-overview :deep(.vol-roster-publish__deadline-save) {
-  margin-left: 0;
-  margin-top: 0.1rem;
-}
-
-.teams-overview :deep(.teams-multi-team-coaches__list) {
-  max-height: 7.5rem;
-  overflow: auto;
-}
-
-@media (max-width: 768px) {
-  .teams-overview {
-    flex-direction: column;
-  }
-}
-</style>
 
