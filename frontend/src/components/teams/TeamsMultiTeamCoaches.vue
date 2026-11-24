@@ -141,25 +141,27 @@ watch(() => event.value?.id, () => {
   >
     <h2 class="vol-sidebar-heading">Coach:innen mit mehr als einem Team</h2>
 
-    <ul class="teams-multi-team-coaches__list">
-      <li
-          v-for="entry in entries"
-          :key="entry.name"
-          class="teams-multi-team-coaches__item"
-      >
-        <span class="teams-multi-team-coaches__coach">{{ entry.name }}</span>:
-        <span class="teams-multi-team-coaches__teams">
-          <span
-              v-for="(team, index) in entry.teams"
-              :key="team.key"
-              class="teams-multi-team-coaches__team"
-          >
-            <ProgramLogo :program="team.program" size="chip" decorative/>
-            <span>{{ team.name }}</span><span v-if="index < entry.teams.length - 1">, </span>
+    <div class="teams-multi-team-coaches__scroll">
+      <ul class="teams-multi-team-coaches__list">
+        <li
+            v-for="entry in entries"
+            :key="entry.name"
+            class="teams-multi-team-coaches__item"
+        >
+          <span class="teams-multi-team-coaches__coach">{{ entry.name }}</span>:
+          <span class="teams-multi-team-coaches__teams">
+            <span
+                v-for="(team, index) in entry.teams"
+                :key="team.key"
+                class="teams-multi-team-coaches__team"
+            >
+              <ProgramLogo :program="team.program" size="chip" decorative/>
+              <span>{{ team.name }}</span><span v-if="index < entry.teams.length - 1">, </span>
+            </span>
           </span>
-        </span>
-      </li>
-    </ul>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
