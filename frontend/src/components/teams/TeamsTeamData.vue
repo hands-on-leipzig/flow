@@ -873,8 +873,21 @@ onActivated(() => {
   margin-top: 0.1rem;
 }
 
+.teams-overview :deep(.teams-multi-team-coaches) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The list must not set the row height: it fills whatever the neighbouring tiles leave and scrolls. */
+.teams-overview :deep(.teams-multi-team-coaches__scroll) {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 7.5rem;
+}
+
 .teams-overview :deep(.teams-multi-team-coaches__list) {
-  max-height: 7.5rem;
+  position: absolute;
+  inset: 0;
   overflow: auto;
 }
 
