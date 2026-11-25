@@ -20,11 +20,27 @@ class MobileNumberTest extends TestCase
     }
 
     #[Test]
-    public function it_leaves_a_german_trunk_zero_in_place(): void
+    public function it_drops_a_german_trunk_zero_after_the_calling_code(): void
     {
+        $expected = ['ok' => true, 'normalized' => '+49 151 44157070'];
+
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize('+49 0151 44157070'));
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize('+49 (0)151 44157070'));
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize('0049 0151 44157070'));
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize('49015144157070'));
+    }
+
+    #[Test]
+    public function it_accepts_dashes_and_non_breaking_spaces_as_separators(): void
+    {
+        $expected = ['ok' => true, 'normalized' => '+49 151 44157070'];
+
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize('0151 – 44157070'));
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize('0151 — 44157070'));
+        $this->assertSame($expected, GermanMobileNumber::validateAndNormalize("0151\u{00A0}44157070"));
         $this->assertSame(
-            ['ok' => true, 'normalized' => '+49 017 01234567'],
-            GermanMobileNumber::validateAndNormalize('+49 0170 1234567'),
+            ['ok' => false, 'error' => 'Ungültige Mobilnummer'],
+            GermanMobileNumber::validateAndNormalize('0151 ~ 44157070'),
         );
     }
 
