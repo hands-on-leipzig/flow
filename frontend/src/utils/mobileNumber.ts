@@ -2,7 +2,8 @@ export type MobileNumberResult =
   | {ok: true; normalized: string | null}
   | {ok: false; error: string}
 
-const ALLOWED_CHARS = /^[0-9+\s\-/().]+$/
+// Dashes and non-breaking spaces often come along when numbers are copied from Word or Excel.
+const ALLOWED_CHARS = /^[0-9+\s\-/().\u2013\u2014\u00A0\u202F]+$/
 const DE_COUNTRY_CODE = '49'
 
 /**
@@ -79,6 +80,9 @@ export function validateAndNormalizeMobile(raw: string | null | undefined): Mobi
 }
 
 function germanFromNational(national: string): MobileNumberResult {
+  // Drop the trunk zero that people often keep after +49, e.g. +49 (0)151 …
+  if (national.startsWith('0')) national = national.slice(1)
+
   if (!national || national.length < 10 || national.length > 12) {
     return {ok: false, error: 'Ungültige Mobilnummer'}
   }
