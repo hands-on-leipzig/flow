@@ -1,9 +1,16 @@
+import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
+
 export type VolunteerImportRow = {
   first_name: string
   last_name: string
   email: string | null
   mobile: string | null
   organization: string | null
+}
+
+/** Preview row: mobile is already normalized; mobile_error keeps the raw value visible when it is invalid. */
+export type VolunteerImportPreviewRow = VolunteerImportRow & {
+  mobile_error: string | null
 }
 
 const HEADER_HINTS = new Set([
@@ -56,13 +63,12 @@ function parseEmailCell(value: string | undefined): string | null | false {
   return trimmed
 }
 
-function normalizeImportMobile(value: string | undefined): string | null {
+/** Same normalization as the backend, so the preview already shows the stored number. */
+function normalizeImportMobile(value: string | undefined): {mobile: string | null; mobile_error: string | null} {
   const trimmed = (value ?? '').trim()
-  if (!trimmed) return null
-  if (/^[-–—.…]+$/u.test(trimmed) || ['---', '...', '…', '-', '--', 'n/a', 'na'].includes(trimmed.toLowerCase())) {
-    return null
-  }
-  return trimmed
+  const result = validateAndNormalizeMobile(trimmed)
+  if (!result.ok) return {mobile: trimmed, mobile_error: result.error}
+  return {mobile: result.normalized, mobile_error: null}
 }
 
 function normalizeImportOrganization(value: string | undefined): string | null {
@@ -70,7 +76,7 @@ function normalizeImportOrganization(value: string | undefined): string | null {
   return trimmed === '' ? null : trimmed
 }
 
-function parseParts(parts: string[]): VolunteerImportRow | null {
+function parseParts(parts: string[]): VolunteerImportPreviewRow | null {
   const cleaned = parts.map((part) => part.trim())
   const first_name = cleaned[0] ?? ''
   const last_name = cleaned[1] ?? ''
@@ -80,11 +86,11 @@ function parseParts(parts: string[]): VolunteerImportRow | null {
   if (email === false) return null
 
   if (cleaned.length <= 2) {
-    return {first_name, last_name, email: null, mobile: null, organization: null}
+    return {first_name, last_name, email: null, mobile: null, mobile_error: null, organization: null}
   }
 
   if (cleaned.length === 3) {
-    return {first_name, last_name, email, mobile: null, organization: null}
+    return {first_name, last_name, email, mobile: null, mobile_error: null, organization: null}
   }
 
   if (cleaned.length === 4) {
@@ -92,7 +98,7 @@ function parseParts(parts: string[]): VolunteerImportRow | null {
       first_name,
       last_name,
       email,
-      mobile: normalizeImportMobile(cleaned[3]),
+      ...normalizeImportMobile(cleaned[3]),
       organization: null,
     }
   }
@@ -101,16 +107,16 @@ function parseParts(parts: string[]): VolunteerImportRow | null {
     first_name,
     last_name,
     email,
-    mobile: normalizeImportMobile(cleaned[3]),
+    ...normalizeImportMobile(cleaned[3]),
     organization: normalizeImportOrganization(cleaned.slice(4).join(' ')),
   }
 }
 
-export function parseVolunteerPeopleImportText(text: string): VolunteerImportRow[] {
+export function parseVolunteerPeopleImportText(text: string): VolunteerImportPreviewRow[] {
   const lines = text.trim().split(/\r?\n/).filter((line) => line.trim())
   if (!lines.length) return []
 
-  const rows: VolunteerImportRow[] = []
+  const rows: VolunteerImportPreviewRow[] = []
   let startIndex = 0
   const firstParts = splitLine(lines[0])
   if (looksLikeHeader(firstParts)) {

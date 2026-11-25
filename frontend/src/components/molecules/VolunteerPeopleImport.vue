@@ -4,6 +4,7 @@ import axios from 'axios'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {
   parseVolunteerPeopleImportText,
+  type VolunteerImportPreviewRow,
   type VolunteerImportRow,
 } from '@/utils/volunteerPeopleImportParse'
 import {personImportColumnLabels, personImportFormatHint} from '@/volunteers/columns/personColumns'
@@ -24,7 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const inputText = ref('')
-const previewRows = ref<VolunteerImportRow[]>([])
+const previewRows = ref<VolunteerImportPreviewRow[]>([])
 const busy = ref(false)
 const importColumns = personImportColumnLabels()
 
@@ -56,7 +57,7 @@ async function addToContactList() {
       `/events/${props.eventId}/volunteers/import`,
       {
         dry_run: false,
-        rows: previewRows.value,
+        rows: previewRows.value.map(({mobile_error: _mobileError, ...row}): VolunteerImportRow => row),
       },
     )
     const created = data.created ?? 0
@@ -125,7 +126,12 @@ watch(() => props.eventId, () => resetInput())
               <td>{{ row.first_name }}</td>
               <td>{{ row.last_name }}</td>
               <td>{{ row.email || '—' }}</td>
-              <td>{{ row.mobile || '—' }}</td>
+              <td
+                  :class="{'vol-import__cell--invalid': row.mobile_error}"
+                  :title="row.mobile_error || undefined"
+              >
+                {{ row.mobile || '—' }}
+              </td>
               <td>{{ row.organization || '—' }}</td>
             </tr>
           </tbody>
@@ -223,6 +229,11 @@ watch(() => props.eventId, () => resetInput())
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+
+.vol-import__cell--invalid {
+  color: var(--color-danger, #dc2626);
+  font-weight: 600;
 }
 
 .vol-import__table tbody tr:last-child td {

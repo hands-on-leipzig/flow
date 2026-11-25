@@ -53,7 +53,8 @@ class GermanMobileNumber
             return ['ok' => true, 'normalized' => null];
         }
 
-        if (! preg_match('/^[0-9+\s\-\/().]+$/', $trimmed)) {
+        // Dashes and non-breaking spaces often come along when numbers are copied from Word or Excel.
+        if (! preg_match('/^[0-9+\s\-\/().\x{2013}\x{2014}\x{00A0}\x{202F}]+$/u', $trimmed)) {
             return ['ok' => false, 'error' => 'Ungültige Mobilnummer'];
         }
 
@@ -81,6 +82,11 @@ class GermanMobileNumber
      */
     private static function germanFromNational(string $national): array
     {
+        // Drop the trunk zero that people often keep after +49, e.g. +49 (0)151 …
+        if (str_starts_with($national, '0')) {
+            $national = substr($national, 1);
+        }
+
         if ($national === '' || strlen($national) < 10 || strlen($national) > 12) {
             return ['ok' => false, 'error' => 'Ungültige Mobilnummer'];
         }
