@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Enums\FirstProgram;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Print\MatchPlanScoreAssembler;
+use App\Print\MatchPlanScoreTcpdfRenderer;
+use App\Support\PreviewTeamLabels;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -96,8 +98,9 @@ class MatchPlanScoreAssemblerTest extends TestCase
 
         $rows = [];
         foreach ([1, 2, 3] as $round) {
-            // Challenge: match 1 is team 1 vs 2.
+            // Challenge: match 1 is team 1 vs 2; match 2 is slot 0 vs slot 9 (no team in plan).
             $rows[] = $this->match($challenge, $round, 1, 1, 2);
+            $rows[] = $this->match($challenge, $round, 2, 0, 9);
             // Future 8+ in the same plan and round: matches 1 and 2 with swapped slots.
             $rows[] = $this->match($future, $round, 1, 2, 1);
             $rows[] = $this->match($future, $round, 2, 1, 0);
@@ -113,11 +116,8 @@ class MatchPlanScoreAssemblerTest extends TestCase
         $rounds = $document['sections'][0]['rounds'];
         $this->assertCount(3, $rounds);
         foreach ($rounds as $round) {
-            $this->assertCount(1, $round['matches']);
-            $match = $round['matches'][0];
-            $this->assertSame(1, (int) $match['match_no']);
-            $this->assertSame('C-Eins', $match['team_1']['name']);
-            $this->assertSame('C-Zwei', $match['team_2']['name']);
+            $this->assertCount(2, $round['matches']);
+            $this->assertMatches($round['matches']);
         }
     }
 
@@ -126,9 +126,40 @@ class MatchPlanScoreAssemblerTest extends TestCase
         $response = app(PlanExportController::class)->matchTeams(10, 2);
         $matches = $response->getData(true)['matches'];
 
-        $this->assertCount(1, $matches);
+        $this->assertCount(2, $matches);
+        $this->assertMatches($matches);
+    }
+
+    public function test_pdf_renders_free_and_missing_slots(): void
+    {
+        $document = app(MatchPlanScoreAssembler::class)->assemble(10);
+        $document['created_at'] = '26.11.2026 12:00';
+        $document['public_url'] = '';
+        $document['qr_base64'] = null;
+        $document['wifi_qr_base64'] = null;
+
+        $bytes = app(MatchPlanScoreTcpdfRenderer::class)->render($document);
+
+        $this->assertStringStartsWith('%PDF', $bytes);
+    }
+
+    /**
+     * Match 1: real teams. Match 2: slot 0 → null (Freier Slot), slot 9 → Fehlendes Team.
+     *
+     * @param  list<array<string, mixed>>  $matches
+     */
+    private function assertMatches(array $matches): void
+    {
+        $this->assertSame(1, (int) $matches[0]['match_no']);
         $this->assertSame('C-Eins', $matches[0]['team_1']['name']);
+        $this->assertFalse($matches[0]['team_1']['missing']);
         $this->assertSame('C-Zwei', $matches[0]['team_2']['name']);
+
+        $this->assertSame(2, (int) $matches[1]['match_no']);
+        $this->assertNull($matches[1]['team_1']);
+        $this->assertSame(PreviewTeamLabels::UNREGISTERED, $matches[1]['team_2']['name']);
+        $this->assertTrue($matches[1]['team_2']['missing']);
+        $this->assertNull($matches[1]['team_2']['hot_number']);
     }
 
     /**
