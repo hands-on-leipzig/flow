@@ -58,6 +58,7 @@ final class MatchPlanScoreAssembler
         for ($round = 1; $round <= 3; $round++) {
             $matches = DB::table('match')
                 ->where('match.plan', $planId)
+                ->where('match.first_program', FirstProgram::CHALLENGE->value)
                 ->where('match.round', $round)
                 ->orderBy('match.match_no')
                 ->get();
