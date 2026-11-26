@@ -7,10 +7,12 @@ import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
 import {hasChallenge, programDisplayName} from '@/utils/eventPrograms'
+import {MISSING_TEAM_NAME} from '@/utils/planTeamLabel'
 
 defineOptions({name: 'MatchPlanScorePrint'})
 
-type MatchTeam = {name: string; hot_number: number; noshow?: boolean} | null
+/** null = slot 0 (Freier Slot); missing = slot without a team in the plan (Fehlendes Team). */
+type MatchTeam = {name: string; hot_number: number | null; noshow?: boolean; missing?: boolean} | null
 type MatchRow = {match_no: number; team_1: MatchTeam; team_2: MatchTeam}
 
 const eventStore = useEventStore()
@@ -86,6 +88,7 @@ function closeMatchPlanModal() {
 
 function formatTeam(team: MatchTeam): string {
   if (!team) return 'Freier Slot'
+  if (team.missing) return MISSING_TEAM_NAME
   return `${team.name} [${team.hot_number}]`
 }
 
@@ -94,7 +97,7 @@ function isNoshow(team: MatchTeam): boolean {
 }
 
 function isEmptySlot(team: MatchTeam): boolean {
-  return team === null
+  return team === null || team.missing === true
 }
 
 async function downloadPdf() {
