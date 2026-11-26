@@ -106,9 +106,10 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Ungültige Runde'], 400);
         }
 
-        // Get matches for this plan and round, ordered by match_no
+        // Challenge matches for this plan and round (Future 8+ shares the table), ordered by match_no
         $matches = DB::table('match')
             ->where('match.plan', $planId)
+            ->where('match.first_program', FirstProgram::CHALLENGE->value)
             ->where('match.round', $round)
             ->orderBy('match.match_no')
             ->get();
