@@ -133,7 +133,7 @@ function handleKeyDown(event) {
 function startFetchingSlides() {
   setInterval(function () {
     fetchSlides()
-  }, 5 * 60 * 1000); // every 5 minutes;
+  }, 5 * 60 * 1000); // every 5 minutes
 }
 
 onMounted(startFetchingSlides)
