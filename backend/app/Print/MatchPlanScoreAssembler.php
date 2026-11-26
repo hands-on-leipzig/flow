@@ -6,6 +6,7 @@ namespace App\Print;
 
 use App\Enums\FirstProgram;
 use App\Services\EventTitleService;
+use App\Support\PreviewTeamLabels;
 use Illuminate\Support\Facades\DB;
 
 final class MatchPlanScoreAssembler
@@ -58,6 +59,7 @@ final class MatchPlanScoreAssembler
         for ($round = 1; $round <= 3; $round++) {
             $matches = DB::table('match')
                 ->where('match.plan', $planId)
+                ->where('match.first_program', FirstProgram::CHALLENGE->value)
                 ->where('match.round', $round)
                 ->orderBy('match.match_no')
                 ->get();
@@ -87,13 +89,24 @@ final class MatchPlanScoreAssembler
     }
 
     /**
+     * Slot 0 → null („Freier Slot“). Slot without a team in team_plan → „Fehlendes Team“.
+     * Shared by the PDF and the online dialog (PlanExportController::matchTeams).
+     *
      * @param  \Illuminate\Support\Collection<int|string, object>  $teamPlanMap
-     * @return array{name:string,hot_number:mixed,noshow:bool}|null
+     * @return array{name:string,hot_number:mixed,noshow:bool,missing:bool}|null
      */
-    private static function teamFromMap($teamPlanMap, int $slot): ?array
+    public static function teamFromMap($teamPlanMap, int $slot): ?array
     {
-        if ($slot <= 0 || ! isset($teamPlanMap[$slot])) {
+        if ($slot <= 0) {
             return null;
+        }
+        if (! isset($teamPlanMap[$slot])) {
+            return [
+                'name' => PreviewTeamLabels::UNREGISTERED,
+                'hot_number' => null,
+                'noshow' => false,
+                'missing' => true,
+            ];
         }
         $team = $teamPlanMap[$slot];
 
@@ -101,6 +114,7 @@ final class MatchPlanScoreAssembler
             'name' => (string) $team->team_name,
             'hot_number' => $team->team_number_hot,
             'noshow' => (bool) ($team->noshow ?? false),
+            'missing' => false,
         ];
     }
 

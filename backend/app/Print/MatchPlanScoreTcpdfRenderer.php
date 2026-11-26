@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Print;
 
+use App\Support\PreviewTeamLabels;
+
 final class MatchPlanScoreTcpdfRenderer
 {
     private const BLUE = [37, 99, 235];
@@ -108,7 +110,7 @@ final class MatchPlanScoreTcpdfRenderer
      */
     private function teamBox(EventPrintPdf $pdf, float $x, float $y, float $w, float $h, ?array $team): void
     {
-        $empty = $team === null;
+        $empty = $team === null || ! empty($team['missing']);
         if ($empty) {
             $pdf->SetFillColor(...self::GRAY);
             $pdf->SetTextColor(...self::GRAY_TEXT);
@@ -133,12 +135,15 @@ final class MatchPlanScoreTcpdfRenderer
     }
 
     /**
-     * @param  array{name?:mixed,hot_number?:mixed,noshow?:bool}|null  $team
+     * @param  array{name?:mixed,hot_number?:mixed,noshow?:bool,missing?:bool}|null  $team
      */
     private static function label(?array $team): string
     {
         if ($team === null) {
             return 'Freier Slot';
+        }
+        if (! empty($team['missing'])) {
+            return PreviewTeamLabels::UNREGISTERED;
         }
         $name = trim((string) ($team['name'] ?? ''));
         $hot = $team['hot_number'] ?? '';
