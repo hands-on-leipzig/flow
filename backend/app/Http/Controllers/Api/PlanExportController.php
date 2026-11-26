@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\MRole;
 use App\Models\Plan;
+use App\Print\MatchPlanScoreAssembler;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\PdfLayoutService;
@@ -106,9 +107,10 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Ungültige Runde'], 400);
         }
 
-        // Get matches for this plan and round, ordered by match_no
+        // Challenge matches for this plan and round (Future 8+ shares the table), ordered by match_no
         $matches = DB::table('match')
             ->where('match.plan', $planId)
+            ->where('match.first_program', FirstProgram::CHALLENGE->value)
             ->where('match.round', $round)
             ->orderBy('match.match_no')
             ->get();
@@ -128,36 +130,13 @@ class PlanExportController extends Controller
             ->get()
             ->keyBy('team_number_plan');
 
-        // Build match data with team information
+        // Same slot rules as the PDF: 0 → Freier Slot, unassigned slot → Fehlendes Team
         $matchData = [];
         foreach ($matches as $match) {
-            $team1 = null;
-            $team2 = null;
-
-            // Get team 1 info
-            if ($match->table_1_team > 0 && isset($teamPlanMap[$match->table_1_team])) {
-                $t1 = $teamPlanMap[$match->table_1_team];
-                $team1 = [
-                    'name' => $t1->team_name,
-                    'hot_number' => $t1->team_number_hot,
-                    'noshow' => (bool) ($t1->noshow ?? false),
-                ];
-            }
-
-            // Get team 2 info
-            if ($match->table_2_team > 0 && isset($teamPlanMap[$match->table_2_team])) {
-                $t2 = $teamPlanMap[$match->table_2_team];
-                $team2 = [
-                    'name' => $t2->team_name,
-                    'hot_number' => $t2->team_number_hot,
-                    'noshow' => (bool) ($t2->noshow ?? false),
-                ];
-            }
-
             $matchData[] = [
                 'match_no' => $match->match_no,
-                'team_1' => $team1,
-                'team_2' => $team2,
+                'team_1' => MatchPlanScoreAssembler::teamFromMap($teamPlanMap, (int) $match->table_1_team),
+                'team_2' => MatchPlanScoreAssembler::teamFromMap($teamPlanMap, (int) $match->table_2_team),
             ];
         }
 
