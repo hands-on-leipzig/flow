@@ -58,8 +58,8 @@ final class ScorLifecycle
     public function reopen(User $user, int $eventId): array
     {
         $this->assertEventAdmin($user, $eventId);
-        if ($this->state($eventId)['released']) {
-            throw new ScorAccessException('Nach der Veröffentlichung ist ein Wiedereröffnen nicht mehr möglich.', 422);
+        if ($this->state($eventId)['released'] && !$user->isFlowAdmin()) {
+            throw new ScorAccessException('Nach der Veröffentlichung nimmt nur ein FLOW-Admin die Auswertung zurück.', 422);
         }
         $this->touch($eventId, ['closed_at' => null, 'released_at' => null]);
 

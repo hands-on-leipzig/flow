@@ -241,6 +241,43 @@ class ScorSheetServiceTest extends TestCase
         $this->assertNull(DB::table('scor_event')->where('event', 1)->value('released_at'));
     }
 
+    public function test_flow_admin_reopens_a_released_event_and_an_event_admin_does_not(): void
+    {
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->timestamp('playground_reset_at')->nullable();
+            $table->text('mail_body')->nullable();
+        });
+        DB::table('event')->where('id', 1)->update(['date' => now()->toDateString()]);
+
+        $this->sheets->closeEvent($this->user(), 1);
+        $reopened = $this->sheets->reopenEvent($this->user(), 1);
+        $this->assertFalse($reopened['closed']);
+        $this->assertFalse($reopened['released']);
+
+        $this->sheets->closeEvent($this->user(), 1);
+        request()->attributes->set('jwt', ['realm_access' => ['roles' => ['flow_admin']]]);
+        $this->sheets->releaseEvent($this->user(), 1);
+        request()->attributes->set('jwt', ['realm_access' => ['roles' => []]]);
+
+        try {
+            $this->sheets->reopenEvent($this->user(), 1);
+            $this->fail('Veranstaltung-Admin nimmt eine Veröffentlichung nicht zurück.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(422, $e->status);
+        }
+        $this->assertNotNull(DB::table('scor_event')->where('event', 1)->value('released_at'));
+
+        request()->attributes->set('jwt', ['realm_access' => ['roles' => ['flow_admin']]]);
+        $takenBack = $this->sheets->reopenEvent($this->user(), 1);
+        $this->assertFalse($takenBack['closed']);
+        $this->assertFalse($takenBack['released']);
+        $this->assertNull(DB::table('scor_event')->where('event', 1)->value('closed_at'));
+        $this->assertNull(DB::table('scor_event')->where('event', 1)->value('released_at'));
+    }
+
     public function test_dev_and_test_publish_during_the_playground_but_production_does_not(): void
     {
         Schema::create('scor_event', function (Blueprint $table) {

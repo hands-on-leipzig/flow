@@ -51,7 +51,11 @@ class ScorPublicResultsTest extends TestCase
         $this->assertSame([], $awards['categories'][1]['nominees']);
         $this->assertNull($awards['categories'][1]['winner']);
         $this->assertSame(['number' => 102, 'name' => 'Beta'], $awards['coaching']);
-        $this->assertSame([['number' => 102, 'name' => 'Beta']], $awards['game']);
+        $this->assertSame([
+            ['number' => 102, 'name' => 'Beta', 'place' => 1],
+            ['number' => 101, 'name' => 'Alpha', 'place' => 2],
+            ['number' => 103, 'name' => 'Gamma', 'place' => 3],
+        ], $awards['game']);
 
         $awardsJson = json_encode($awards);
         foreach (['rank"', '"points"', '"average"', '"best"', '"robot"', '"rounds"'] as $hidden) {

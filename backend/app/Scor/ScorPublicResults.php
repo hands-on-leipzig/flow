@@ -65,7 +65,7 @@ final class ScorPublicResults
 
         $gameWinners = array_values(array_filter(
             $game,
-            fn (array $team) => (int) $team['robot_rank'] === 1 && $team['robot'] > 0,
+            fn (array $team) => in_array((int) $team['robot_rank'], [1, 2, 3], true) && $team['robot'] > 0,
         ));
 
         return [
@@ -74,7 +74,7 @@ final class ScorPublicResults
                 'podium' => $podium,
                 'categories' => $categories,
                 'coaching' => $coaching && isset($teams[(int) $coaching]) ? $this->team($teams[(int) $coaching]) : null,
-                'game' => array_map(fn (array $team) => $this->team($team), $gameWinners),
+                'game' => array_map(fn (array $team) => $this->team($team) + ['place' => (int) $team['robot_rank']], $gameWinners),
             ],
             'game' => [
                 'rounds' => $results['rounds'],

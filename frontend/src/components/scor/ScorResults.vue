@@ -11,6 +11,8 @@ const mailNotice = ref('')
 const awardBusy = ref(false)
 const publishOpen = ref(false)
 const resetOpen = ref(false)
+const reopenOpen = ref(false)
+const mailOpen = ref(false)
 const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
@@ -520,6 +522,22 @@ async function confirmPublish() {
   await releaseEvent()
 }
 
+async function confirmReopen() {
+  reopenOpen.value = false
+  awardError.value = ''
+  try {
+    const {data} = await axios.post(`/scor/events/${props.results.event.id}/reopen`)
+    emit('saved', {...props.results, lifecycle: data})
+  } catch (e: any) {
+    awardError.value = e?.response?.data?.error || 'Wieder öffnen fehlgeschlagen.'
+  }
+}
+
+function confirmMail() {
+  mailOpen.value = false
+  void sendMail()
+}
+
 async function releaseEvent() {
   const {data} = await axios.post(`/scor/events/${props.results.event.id}/release`)
   emit('saved', {...props.results, lifecycle: data})
@@ -922,18 +940,29 @@ function formatPoints(value: number) {
           Die Auswertung ist festgeschrieben. Änderungen sind nicht mehr möglich. Öffentlich sichtbar ist sie noch nicht.
           <template v-if="!results.flow_admin">Veröffentlichen kann nur ein FLOW-Admin.</template>
         </p>
-        <button
-            v-if="results.flow_admin && results.lifecycle.closed && !results.lifecycle.released"
-            type="button"
-            class="scor-finalize"
-            @click="publishOpen = true"
-        >
-          Veröffentlichen
-        </button>
+        <div v-if="results.lifecycle.closed && !results.lifecycle.released" class="scor-award-actions">
+          <button type="button" class="glass-btn-secondary scor-reset" @click="reopenOpen = true">
+            Auswertung wieder öffnen
+          </button>
+          <button
+              v-if="results.flow_admin"
+              type="button"
+              class="scor-finalize"
+              @click="publishOpen = true"
+          >
+            Veröffentlichen
+          </button>
+        </div>
         <p v-if="results.lifecycle.released" class="scor-results__note">
           Die Ergebnisse stehen auf der Standortseite.
+          <template v-if="!results.flow_admin">Zurücknehmen kann das nur ein FLOW-Admin.</template>
         </p>
-        <button v-if="results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
+        <div v-if="results.lifecycle.released" class="scor-award-actions">
+          <button v-if="results.flow_admin" type="button" class="glass-btn-secondary scor-reset" @click="reopenOpen = true">
+            Auswertung wieder öffnen
+          </button>
+          <button type="button" class="glass-btn-secondary scor-reset" @click="mailOpen = true">Jury-PDF an Coaches</button>
+        </div>
       </template>
       <p v-if="mailNotice" class="scor-results__note">{{ mailNotice }}</p>
       <div v-if="resetOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-reset-title">
@@ -949,10 +978,31 @@ function formatPoints(value: number) {
       <div v-if="publishOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-publish-title">
         <div class="scor-publish__card">
           <h2 id="scor-publish-title">Ergebnisse veröffentlichen</h2>
-          <p>Danach sind die Ergebnisse auf der Standortseite zu sehen. Ein Wiedereröffnen ist nicht mehr möglich.</p>
+          <p>Danach sind die Ergebnisse auf der Standortseite zu sehen. Zurücknehmen kann das nur ein FLOW-Admin.</p>
           <div class="scor-publish__actions">
             <button type="button" class="glass-btn-secondary" @click="publishOpen = false">Abbrechen</button>
             <button type="button" class="glass-btn-accent" @click="confirmPublish">Veröffentlichen</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="reopenOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-reopen-title">
+        <div class="scor-publish__card">
+          <h2 id="scor-reopen-title">Auswertung wieder öffnen</h2>
+          <p v-if="results.lifecycle.released">Die Ergebnisse verschwinden von der Standortseite. Die Festschreibung wird aufgehoben. Bögen, Punkte, Pokale und Nominierungen bleiben.</p>
+          <p v-else>Die Festschreibung wird aufgehoben. Bögen, Punkte, Pokale und Nominierungen bleiben.</p>
+          <div class="scor-publish__actions">
+            <button type="button" class="glass-btn-secondary" @click="reopenOpen = false">Abbrechen</button>
+            <button type="button" class="glass-btn-accent" @click="confirmReopen">Wieder öffnen</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="mailOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-mail-title">
+        <div class="scor-publish__card">
+          <h2 id="scor-mail-title">Jury-PDF an Coaches</h2>
+          <p>Die Mails gehen sofort an die Coaches. Jedes Team mit einer Coach-Adresse bekommt das Jury-PDF.</p>
+          <div class="scor-publish__actions">
+            <button type="button" class="glass-btn-secondary" @click="mailOpen = false">Abbrechen</button>
+            <button type="button" class="glass-btn-accent" @click="confirmMail">Mails senden</button>
           </div>
         </div>
       </div>

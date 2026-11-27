@@ -88,7 +88,7 @@ function formatPoints(value: number | null) {
     <template v-else>
 
       <section v-if="tab === 'gesamt'" class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
-        <h2>Auszeichnungen</h2>
+        <h2>Pokale</h2>
         <div v-if="awards.podium.length" class="scor-podium">
           <h3 class="scor-podium__title">Champion</h3>
           <ol class="scor-podium__stage">
@@ -118,7 +118,7 @@ function formatPoints(value: number | null) {
             </ul>
             <p v-else class="scor-public__muted">Keine Nominierung.</p>
             <template v-if="category.winner">
-              <p class="scor-public__label scor-public__label--award">Auszeichnung</p>
+              <p class="scor-public__label scor-public__label--award">Pokal</p>
               <p class="scor-public__winner">
                 <i class="bi bi-trophy-fill" aria-hidden="true"/>
                 <span>{{ teamLine(category.winner) }}</span>
@@ -128,26 +128,34 @@ function formatPoints(value: number | null) {
 
           <article v-if="awards.coaching" class="scor-public__category">
             <h3>Coaching</h3>
-            <p class="scor-public__label scor-public__label--award">Auszeichnung</p>
+            <p class="scor-public__label scor-public__label--award">Pokal</p>
             <p class="scor-public__winner">
               <i class="bi bi-trophy-fill" aria-hidden="true"/>
               <span>{{ teamLine(awards.coaching) }}</span>
             </p>
           </article>
 
-          <article v-if="awards.game.length" class="scor-public__category">
+          <article v-if="awards.game.length" class="scor-public__category scor-public__category--wide">
             <h3>Spiel</h3>
-            <p class="scor-public__label scor-public__label--award">Auszeichnung</p>
-            <p v-for="team in awards.game" :key="team.number" class="scor-public__winner">
-              <i class="bi bi-trophy-fill" aria-hidden="true"/>
-              <span>{{ teamLine(team) }}</span>
-            </p>
+            <p class="scor-public__label scor-public__label--award">Pokal</p>
+            <ol class="scor-public__places">
+              <li v-for="team in awards.game" :key="team.number">
+                <span class="scor-public__place">{{ team.place }}</span>
+                <span>{{ teamLine(team) }}</span>
+              </li>
+            </ol>
           </article>
         </div>
       </section>
 
       <section v-else class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
         <h2>Spiel</h2>
+        <ol v-if="awards.game.length" class="scor-public__places scor-public__places--bar">
+          <li v-for="team in awards.game" :key="team.number">
+            <span class="scor-public__place">{{ team.place }}</span>
+            <span>{{ teamLine(team) }}</span>
+          </li>
+        </ol>
         <div class="scor-public__table">
           <table>
             <thead>
@@ -189,13 +197,13 @@ function formatPoints(value: number | null) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 56rem;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
   padding: 1rem;
 }
 
 .scor-public.is-embedded {
-  max-width: none;
   padding: 0;
 }
 
@@ -230,6 +238,7 @@ function formatPoints(value: number | null) {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  width: 100%;
 }
 
 .scor-public__section h2 {
@@ -260,9 +269,8 @@ function formatPoints(value: number | null) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 0.6rem;
-  max-width: 40rem;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -389,6 +397,11 @@ function formatPoints(value: number | null) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1rem;
+  width: 100%;
+}
+
+.scor-public__category--wide {
+  grid-column: 1 / -1;
 }
 
 .scor-public__category {
@@ -446,6 +459,53 @@ function formatPoints(value: number | null) {
   flex: none;
   font-size: 1.55rem;
   color: #146c36;
+}
+
+.scor-public__places {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scor-public__places li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, #146c36 10%, transparent);
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.scor-public__places--bar {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.scor-public__place {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #146c36;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .scor-public__places {
+    grid-template-columns: 1fr;
+  }
 }
 
 .scor-public__muted {

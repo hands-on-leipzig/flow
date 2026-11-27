@@ -702,6 +702,7 @@ final class ScorSheetService
             'event' => ['id' => (int) $event->id, 'name' => $event->name],
             'kind' => $kind,
             'roles' => $roles->view(),
+            'flow_admin' => $user->isFlowAdmin(),
             'locked' => $kind === 'referee' ? $this->isLocked($sheet) : (bool) ($sheet->completed ?? false),
             'confirmed_referee' => (bool) ($sheet->confirmed_referee ?? false),
             'confirmed_team' => (bool) ($sheet->confirmed_team ?? false),
