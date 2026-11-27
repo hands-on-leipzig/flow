@@ -164,6 +164,8 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::post('/session', [CockpitController::class, 'openSession']);
     Route::get('/rounds', [CockpitController::class, 'getRounds']);
     Route::put('/rounds', [CockpitController::class, 'saveRounds']);
+    Route::get('/results', [CockpitController::class, 'results']);
+    Route::put('/game-rounds', [CockpitController::class, 'saveGameRounds']);
     Route::get('/organizer', [CockpitController::class, 'organizerContact']);
     Route::get('/phonebook', [CockpitController::class, 'phonebook']);
     Route::get('/overview', [CockpitController::class, 'overview']);
@@ -177,11 +179,13 @@ Route::prefix('cockpit/{slug}')->group(function () {
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
     Route::get('/score', [ContaoController::class, 'getScore']);
+    Route::get('/public/results-links/{eventId}', [ContaoController::class, 'resultLinks'])->whereNumber('eventId');
 });
 
 Route::post('/scor/login', [ScorController::class, 'login']);
 Route::get('/scor/public/practice/{eventId}', [ScorController::class, 'practice']);
 Route::get('/scor/public/results/{eventId}', [ScorController::class, 'published']);
+Route::get('/scor/public/game/{eventId}', [ScorController::class, 'game']);
 Route::post('/scor/public/practice/score', [ScorController::class, 'practiceScore']);
 
 Route::middleware(['keycloak'])->group(function () {
@@ -492,6 +496,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/events/{eventId}/stage', [ScorController::class, 'pickStage']);
         Route::post('/events/{eventId}/close', [ScorController::class, 'closeEvent']);
         Route::post('/events/{eventId}/release', [ScorController::class, 'releaseEvent']);
+        Route::post('/events/{eventId}/mock-data', [ScorController::class, 'mockData']);
         Route::post('/events/{eventId}/reopen', [ScorController::class, 'reopenEvent']);
         Route::post('/events/{eventId}/coach-mail', [ScorController::class, 'sendResults']);
         Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);

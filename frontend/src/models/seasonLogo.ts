@@ -3,6 +3,7 @@ export const SEASON_LOGO_HEIGHT = 217;
 
 const SEASON_LOGO_DEFAULT: Record<string, boolean> = {
     RobotGameSlideContent: true,
+    FutureGameSlideContent: true,
     PublicPlanSlideContent: true,
     PublicPlanNextSlideContent: true,
     PublicPlanUpcomingSlideContent: true,

@@ -11,7 +11,7 @@ import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.
 import CockpitOverviewPanel from '@/components/molecules/CockpitOverviewPanel.vue'
 import CockpitTimeShiftPanel from '@/components/molecules/CockpitTimeShiftPanel.vue'
 import CockpitStagePresentationPanel from '@/components/molecules/CockpitStagePresentationPanel.vue'
-import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
+import CockpitResultsPanel from '@/components/molecules/CockpitResultsPanel.vue'
 
 defineOptions({name: 'CockpitApp'})
 
@@ -105,10 +105,6 @@ api.interceptors.response.use(
 
 const unlocked = computed(() => !!token.value && !!bootstrap.value?.enabled)
 
-const roundsApiPath = computed(() =>
-    slug.value ? `/cockpit/${slug.value}/rounds` : null,
-)
-
 const tools: CockpitTool[] = [
   {
     id: 'overview',
@@ -136,8 +132,8 @@ const tools: CockpitTool[] = [
   },
   {
     id: 'robot-rounds',
-    title: 'Robot-Game Ergebnisse',
-    homeLabel: 'Robot-Game',
+    title: 'Ergebnisanzeige',
+    homeLabel: 'Ergebnisanzeige',
     explanation: 'Wähle aus, welche Runden öffentlich sichtbar sein sollen.',
     icons: ['bi-trophy'],
     ready: true,
@@ -415,11 +411,10 @@ onMounted(async () => {
             :explanation="activeTool.explanation"
             @back="backHome"
         >
-          <RobotGameRoundsPanel
+          <CockpitResultsPanel
               v-if="activeTool.id === 'robot-rounds'"
-              embedded
+              :slug="slug"
               :event-id="bootstrap?.event_id ?? null"
-              :rounds-api-path="roundsApiPath"
               :http="api"
           />
           <CockpitOverviewPanel

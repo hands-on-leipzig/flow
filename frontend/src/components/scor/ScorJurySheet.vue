@@ -17,6 +17,7 @@ const texts = ref<Record<string, string>>({})
 const disabled = ref<number[]>([])
 const error = ref('')
 const busy = ref(false)
+const reopenEventOpen = ref(false)
 const {setSync} = useWiseSync()
 const syncState = ref<'idle' | 'local' | 'syncing' | 'synced' | 'offline'>('idle')
 let hydrating = false
@@ -144,7 +145,8 @@ const visibleSections = computed(() => (props.sheet?.sections || []).filter((sec
 const gracious = computed(() => {
   const rounds = props.sheet?.game_gracious || []
   if (!rounds.length) return ''
-  return `Spiel: ${rounds.map((round: any) => round.points ?? '–').join(' · ')}`
+  const sum = rounds.reduce((total: number, round: any) => total + (round.points ?? 0), 0)
+  return `+ ${sum} aus dem Spiel: ${rounds.map((round: any) => round.points ?? '–').join(' · ')}`
 })
 
 function feedbackSkipped(section: any) {
@@ -217,7 +219,16 @@ async function complete() {
   }
 }
 
+function askReopenEvent() {
+  if (props.sheet?.lifecycle?.released) {
+    reopenEventOpen.value = true
+    return
+  }
+  void reopenEvent()
+}
+
 async function reopenEvent() {
+  reopenEventOpen.value = false
   busy.value = true
   error.value = ''
   try {
@@ -270,7 +281,7 @@ function setLevel(id: number, level: number) {
 
     <p v-if="sheet.lifecycle?.closed" class="jury-sheet__alert" role="alert">
       Die Auswertung ist geschlossen. Speichern geht erst wieder nach dem Öffnen.
-      <button v-if="sheet.roles?.admin && !sheet.lifecycle?.released" type="button" class="glass-btn-accent" :disabled="busy" @click="reopenEvent">Wieder öffnen</button>
+      <button v-if="sheet.roles?.admin && (!sheet.lifecycle?.released || sheet.flow_admin)" type="button" class="glass-btn-accent" :disabled="busy" @click="askReopenEvent">Wieder öffnen</button>
     </p>
     <p v-if="error" class="jury-sheet__alert" role="alert">{{ error }}</p>
 
@@ -378,12 +389,22 @@ function setLevel(id: number, level: number) {
       <p class="jury-bar__points">{{ sheet.points }} <span>Punkte</span></p>
       <p class="jury-bar__core">
         Grundwerte {{ sheet.core_points }}
-        <span v-if="gracious" class="jury-bar__game" title="Freundliches Miteinander aus den Schiri-Bögen, je Runde">({{ gracious }})</span>
+        <span v-if="gracious" class="jury-bar__game" title="Freundliches Miteinander aus den Schiri-Bögen zählt zu den Grundwerten, je Runde">{{ gracious }}</span>
       </p>
       <button v-if="!sheet.completed" type="button" class="glass-btn-accent" :disabled="busy || sheet.lifecycle?.closed" @click="complete">Bewertung abschließen</button>
       <button v-if="!sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy || sheet.lifecycle?.closed" @click="save">Speichern</button>
       <button v-if="sheet.completed" type="button" class="glass-btn-accent jury-bar__leave" @click="leave">zurück zur Übersicht</button>
       <button v-if="sheet.roles?.head_judge && sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
+    </div>
+    <div v-if="reopenEventOpen" class="jury-reopen" role="dialog" aria-modal="true" aria-labelledby="jury-reopen-title">
+      <div class="jury-reopen__card">
+        <h2 id="jury-reopen-title">Auswertung wieder öffnen</h2>
+        <p>Die Ergebnisse verschwinden von der Standortseite. Die Festschreibung wird aufgehoben. Bögen, Punkte, Pokale und Nominierungen bleiben.</p>
+        <div class="jury-reopen__actions">
+          <button type="button" class="glass-btn-secondary" @click="reopenEventOpen = false">Abbrechen</button>
+          <button type="button" class="glass-btn-accent" :disabled="busy" @click="reopenEvent">Wieder öffnen</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -393,6 +414,42 @@ function setLevel(id: number, level: number) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.jury-reopen {
+  position: fixed;
+  inset: 0;
+  z-index: 13000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.jury-reopen__card {
+  width: min(100%, 28rem);
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-lg);
+  background: var(--orbit-base, #f4f6f9);
+  color: var(--color-text);
+}
+
+.jury-reopen__card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.jury-reopen__card p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.jury-reopen__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
 }
 
 .jury-sheet__head {

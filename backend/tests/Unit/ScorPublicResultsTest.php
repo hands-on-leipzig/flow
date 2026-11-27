@@ -32,23 +32,55 @@ class ScorPublicResultsTest extends TestCase
             'lifecycle' => ['closed' => true, 'released' => true, 'mail_body' => 'intern'],
         ]);
 
-        $this->assertSame(['event', 'rounds', 'game', 'podium', 'categories', 'coaching'], array_keys($public));
-        $this->assertSame([102, 101, 103], array_column($public['game'], 'number'));
-        $this->assertSame([1, 2, 3], array_column($public['game'], 'rank'));
-        $this->assertSame([['round' => 1, 'points' => 55]], $public['game'][0]['rounds']);
-        $this->assertSame([['place' => 'champion', 'team' => ['number' => 101, 'name' => 'Alpha']]], $public['podium']);
+        $this->assertSame(['event', 'awards', 'game'], array_keys($public));
+        $this->assertSame(['podium', 'categories', 'coaching', 'game'], array_keys($public['awards']));
+        $this->assertSame(['rounds', 'teams'], array_keys($public['game']));
 
-        $research = $public['categories'][0];
+        $game = $public['game']['teams'];
+        $this->assertSame([102, 101, 103], array_column($game, 'number'));
+        $this->assertSame([1, 2, 3], array_column($game, 'rank'));
+        $this->assertSame([55, 40, 10], array_column($game, 'best'));
+        $this->assertSame([['round' => 1, 'points' => 55]], $game[0]['rounds']);
+
+        $awards = $public['awards'];
+        $this->assertSame([['place' => 'champion', 'team' => ['number' => 101, 'name' => 'Alpha']]], $awards['podium']);
+        $research = $awards['categories'][0];
         $this->assertSame('research', $research['category']);
         $this->assertSame([102, 103], array_column($research['nominees'], 'number'));
-        $this->assertSame([false, true], array_column($research['nominees'], 'trophy'));
-        $this->assertSame([], $public['categories'][1]['nominees']);
-        $this->assertSame(['number' => 102, 'name' => 'Beta'], $public['coaching']);
+        $this->assertSame(['number' => 103, 'name' => 'Gamma'], $research['winner']);
+        $this->assertSame([], $awards['categories'][1]['nominees']);
+        $this->assertNull($awards['categories'][1]['winner']);
+        $this->assertSame(['number' => 102, 'name' => 'Beta'], $awards['coaching']);
+        $this->assertSame([
+            ['number' => 102, 'name' => 'Beta', 'place' => 1],
+            ['number' => 101, 'name' => 'Alpha', 'place' => 2],
+            ['number' => 103, 'name' => 'Gamma', 'place' => 3],
+        ], $awards['game']);
+
+        $awardsJson = json_encode($awards);
+        foreach (['rank"', '"points"', '"average"', '"best"', '"robot"', '"rounds"'] as $hidden) {
+            $this->assertStringNotContainsString($hidden, $awardsJson);
+        }
 
         $json = json_encode($public);
         foreach (['"champion":', '_rank":', '"research":', '"robotdesign":', '"core_values":', 'mail_body', 'can_edit', '"id":1,"number"'] as $hidden) {
             $this->assertStringNotContainsString($hidden, $json);
         }
+    }
+
+    public function test_no_spiel_trophy_while_nobody_has_points(): void
+    {
+        $public = (new ScorPublicResults())->fromResults([
+            'event' => ['id' => 1, 'name' => 'Leipzig'],
+            'rounds' => [['round' => 1, 'label' => 'Runde 1']],
+            'teams' => [
+                ['id' => 1, 'number' => 101, 'name' => 'Alpha', 'rounds' => [null], 'robot' => 0, 'robot_rank' => 1],
+            ],
+            'awards' => ['trophies' => [], 'nominations' => [], 'coaching' => null],
+        ]);
+
+        $this->assertSame([], $public['awards']['game']);
+        $this->assertNull($public['game']['teams'][0]['best']);
     }
 
     /**

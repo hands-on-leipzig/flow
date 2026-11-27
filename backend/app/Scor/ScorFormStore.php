@@ -166,6 +166,55 @@ final class ScorFormStore
         if ($kind === 'jury') {
             $this->syncJuryFeedback((int) $form->id, $sections);
         }
+        if ($kind === 'referee') {
+            $this->syncRefereeCounts((int) $form->id, $sections);
+        }
+    }
+
+    /**
+     * Mission 01 shows 3+ and the containment zone counts up to 12.
+     * Updated in place so item ids, and the answers keyed by them, stay.
+     *
+     * @param  list<array<string, mixed>>  $sections
+     */
+    private function syncRefereeCounts(int $formId, array $sections): void
+    {
+        $wanted = [];
+        foreach ($sections as $section) {
+            foreach ($section['items'] ?? [] as $item) {
+                if (($item['item_type'] ?? '') === 'count') {
+                    $wanted[(string) $item['label']] = $item;
+                }
+            }
+        }
+
+        $rows = DB::table('scor_item')
+            ->join('scor_section', 'scor_section.id', '=', 'scor_item.section')
+            ->where('scor_section.form', $formId)
+            ->where('scor_item.item_type', 'count')
+            ->get(['scor_item.id', 'scor_item.label', 'scor_item.config']);
+        foreach ($rows as $row) {
+            $item = $wanted[(string) $row->label] ?? null;
+            $config = $this->decodeConfig($row->config) ?? [];
+            if (!$item) {
+                continue;
+            }
+            $openMax = !empty($item['config']['open_max']) && !array_key_exists('open_max', $config) && (int) ($config['max'] ?? -1) === 3;
+            $raiseMax = (string) $row->label === 'Invasive Arten in der Eindämmungszone' && (int) ($config['max'] ?? -1) === 6;
+            if (!$openMax && !$raiseMax) {
+                continue;
+            }
+            if ($openMax) {
+                $config['open_max'] = true;
+            }
+            if ($raiseMax) {
+                $config['max'] = (int) $item['config']['max'];
+            }
+            DB::table('scor_item')->where('id', $row->id)->update([
+                'config' => json_encode($config, JSON_UNESCAPED_UNICODE),
+                'hint' => $item['hint'] ?? null,
+            ]);
+        }
     }
 
     /**
@@ -379,6 +428,9 @@ final class ScorFormStore
             $encoded = ['points_each' => (int) ($config['points_each'] ?? 0)];
             if (array_key_exists('max', $config) && $config['max'] !== null && $config['max'] !== '') {
                 $encoded['max'] = max(0, (int) $config['max']);
+                if (!empty($config['open_max'])) {
+                    $encoded['open_max'] = true;
+                }
             }
 
             return json_encode($encoded, JSON_UNESCAPED_UNICODE);

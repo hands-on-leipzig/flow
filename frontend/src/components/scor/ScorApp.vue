@@ -296,6 +296,25 @@ function onStageTouchEnd() {
   else stageDragY.value = 0
 }
 
+const mockBusy = ref(false)
+const mockNotice = ref('')
+
+async function fillMockData() {
+  if (!eventId.value) return
+  if (!window.confirm('Alle Bögen und Auszeichnungen dieser Veranstaltung werden gelöscht und mit Zufallsdaten neu gefüllt. Fortfahren?')) return
+  mockBusy.value = true
+  mockNotice.value = ''
+  try {
+    const {data} = await axios.post(`/scor/events/${eventId.value}/mock-data`)
+    await load()
+    mockNotice.value = `${data.referee} Schiri-Bögen und ${data.jury} Jury-Bögen gefüllt.`
+  } catch (e: any) {
+    mockNotice.value = e?.response?.data?.error || 'Mock-Daten fehlgeschlagen.'
+  } finally {
+    mockBusy.value = false
+  }
+}
+
 async function saveStage() {
   error.value = ''
   try {
@@ -325,7 +344,8 @@ async function saveStage() {
   </form>
     <div v-else class="mx-auto max-w-5xl space-y-6">
     <p v-if="overview?.lifecycle?.playground" class="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-lg">
-      Spielwiese. Bis zum Tag der Veranstaltung zählen die Bögen nur zum Üben und werden in der Nacht davor gelöscht. Nichts davon ist öffentlich.
+      Spielwiese. Bis zum Tag der Veranstaltung zählen die Bögen nur zum Üben und werden in der Nacht davor gelöscht.
+      {{ overview.lifecycle.playground_publishes ? 'Auf Dev und Test lässt sich zum Ausprobieren trotzdem veröffentlichen.' : 'Nichts davon ist öffentlich.' }}
     </p>
     <div>
       <button
@@ -359,6 +379,15 @@ async function saveStage() {
 
     <template v-else-if="overview">
       <p v-if="!overview.has_plan" class="text-lg text-[var(--color-text-muted)]">Für diese Veranstaltung gibt es noch keinen Matchplan.</p>
+
+      <section v-if="overview.mock_data" class="wise-mock" aria-label="Mock-Daten">
+        <span class="wise-mock__tag">Nur Dev/Test</span>
+        <button type="button" class="glass-btn-secondary" :disabled="mockBusy" @click="fillMockData">
+          <i class="bi bi-magic" aria-hidden="true"/>
+          {{ mockBusy ? 'Wird gefüllt …' : 'Auswertung mit Mock-Daten füllen' }}
+        </button>
+        <span v-if="mockNotice" class="wise-mock__notice">{{ mockNotice }}</span>
+      </section>
 
       <ScorResults v-if="tab === 'ergebnisse' && results" :results="results" @saved="results = $event"/>
 
@@ -679,6 +708,29 @@ async function saveStage() {
 .scor-assign__people {
   color: var(--color-text-muted);
   font-size: 1.125rem;
+}
+
+.wise-mock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  border: 2px dashed #7c3aed;
+  border-radius: var(--radius-lg, 0.85rem);
+}
+
+.wise-mock__tag {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7c3aed;
+}
+
+.wise-mock__notice {
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
 }
 
 .wise-stage-open {

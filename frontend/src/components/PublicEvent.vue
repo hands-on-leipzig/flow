@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {imageUrl} from '@/utils/images'
-import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, resolveProgramRef} from '@/utils/eventPrograms'
 import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -24,6 +24,7 @@ const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
 const publishedResults = ref(null)
+const contaoResultLinks = ref([])
 
 
 const headingTitle = computed(() => getEventTitleLong(event.value) || event.value?.name || 'Veranstaltung')
@@ -44,24 +45,10 @@ const heroTitle = computed(() => {
   return parts.join(' · ')
 })
 
-const publishedAwardLines = computed(() => {
-  const payload = publishedResults.value
-  if (!payload?.game) return []
-  const line = (team) => team ? `${team.number} ${team.name}` : ''
-  const place = (id) => line(payload.podium?.find((entry) => entry.place === id)?.team)
-  const winner = (id) => line(payload.categories?.find((entry) => entry.category === id)?.nominees.find((team) => team.trophy))
-  const lines = [
-    {label: 'Champion', value: place('champion')},
-    {label: 'Silber', value: place('silver')},
-    {label: 'Bronze', value: place('bronze')},
-    {label: 'Projekt', value: winner('research')},
-    {label: 'Technisches Design', value: winner('robotdesign')},
-    {label: 'Grundwerte', value: winner('core_values')},
-    {label: 'Coaching', value: line(payload.coaching)},
-    {label: 'Spiel', value: payload.game.filter((team) => team.rank === 1).map(line).join(', ')},
-  ]
-  return lines.filter((line) => line.value)
-})
+function resultsLabel(firstProgram) {
+  const name = programDisplayName(resolveProgramRef(event.value, firstProgram))
+  return name ? `Ergebnisse ${name}` : 'Ergebnisse'
+}
 
 const loadEvent = async () => {
   try {
@@ -115,6 +102,13 @@ const loadEvent = async () => {
       publishedResults.value = resultsResponse.data
     } catch {
       publishedResults.value = null
+    }
+
+    try {
+      const linksResponse = await axios.get(`/contao/public/results-links/${event.value.id}`)
+      contaoResultLinks.value = Array.isArray(linksResponse.data) ? linksResponse.data : []
+    } catch {
+      contaoResultLinks.value = []
     }
   } catch (err) {
     console.error('Error loading event:', err)
@@ -452,20 +446,38 @@ onMounted(async () => {
         <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
 
-      <section
-          v-if="publishedAwardLines.length"
-          class="glass-card liquid-surface-inner pe-section"
-      >
-        <h2 class="glass-card__title">Ergebnisse</h2>
-        <ul class="pe-results">
-          <li v-for="line in publishedAwardLines" :key="line.label">
-            <span>{{ line.label }}</span>
-            <strong>{{ line.value }}</strong>
-          </li>
-        </ul>
-        <button type="button" class="glass-btn-secondary pe-results__more" @click="openResults">
-          Alle Ergebnisse mit Spielpunkten und Nominierungen
+      <section v-if="publishedResults" class="pe-springboard-card glass-card liquid-surface-inner">
+        <button type="button" class="pe-springboard pe-springboard--plain" @click="openResults">
+          <span class="pe-springboard__icon" aria-hidden="true">
+            <i class="bi bi-trophy"/>
+          </span>
+          <span class="pe-springboard__copy">
+            <span class="pe-springboard__kicker">Jetzt öffnen</span>
+            <h2 class="pe-springboard__title">{{ resultsLabel(8) }}</h2>
+          </span>
+          <span class="pe-springboard__go" aria-hidden="true">
+            <i class="bi bi-arrow-right"/>
+          </span>
         </button>
+      </section>
+
+      <section
+          v-for="link in contaoResultLinks"
+          :key="link.url"
+          class="pe-springboard-card glass-card liquid-surface-inner"
+      >
+        <a class="pe-springboard pe-springboard--plain" :href="link.url" target="_blank" rel="noopener noreferrer">
+          <span class="pe-springboard__icon" aria-hidden="true">
+            <i class="bi bi-trophy"/>
+          </span>
+          <span class="pe-springboard__copy">
+            <span class="pe-springboard__kicker">Öffnet in neuem Tab</span>
+            <h2 class="pe-springboard__title">{{ resultsLabel(link.first_program) }}</h2>
+          </span>
+          <span class="pe-springboard__go" aria-hidden="true">
+            <i class="bi bi-box-arrow-up-right"/>
+          </span>
+        </a>
       </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
@@ -970,31 +982,6 @@ onMounted(async () => {
   line-height: 1.2;
 }
 
-.pe-results {
-  list-style: none;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.pe-results li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.pe-results span {
-  color: var(--color-text-muted);
-}
-
-.pe-results__more {
-  display: inline-flex;
-  margin-top: 1rem;
-  text-decoration: none;
-}
-
 .pe-section {
   padding: 1.25rem 1.25rem 1.4rem !important;
 }
@@ -1030,6 +1017,10 @@ onMounted(async () => {
   transition:
     transform 0.18s ease,
     filter 0.18s ease;
+}
+
+.pe-springboard--plain {
+  text-decoration: none;
 }
 
 .pe-springboard::after {
@@ -1228,6 +1219,10 @@ onMounted(async () => {
 
   .pe-springboard__copy {
     padding-right: min(42%, 14.5rem);
+  }
+
+  .pe-springboard--plain .pe-springboard__copy {
+    padding-right: 0;
   }
 
   .pe-springboard__go {

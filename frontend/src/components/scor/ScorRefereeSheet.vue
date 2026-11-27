@@ -24,6 +24,7 @@ const points = computed(() => {
   if (matchZeroed()) return 0
   let total = 0
   for (const section of props.sheet?.sections || []) {
+    if (section.core_values) continue
     for (const item of section.items || []) {
       total += pointsFor(item, values.value[String(item.id)])
     }
@@ -31,7 +32,48 @@ const points = computed(() => {
   return total
 })
 
+const allOpen = computed(() => {
+  const sections = props.sheet?.sections || []
+  return sections.length > 0 && sections.every((section: any) => isOpen(section.id))
+})
+
+function toggleAll() {
+  openSections.value = allOpen.value ? [] : (props.sheet?.sections || []).map((section: any) => section.id)
+}
+
+function blocked(item: any) {
+  const need = item.requires
+  if (!need) return false
+  return Number(values.value[String(need.item)] ?? 0) < Number(need.min)
+}
+
+function requiredHint(item: any) {
+  const need = item.requires
+  for (const section of props.sheet?.sections || []) {
+    for (const other of section.items || []) {
+      if (other.id === need.item) return `Erst ab ${need.min} ${other.label}.`
+    }
+  }
+  return `Erst ab ${need.min}.`
+}
+
+function applyRequirements(target: Record<string, string | number>) {
+  let changed = false
+  for (const section of props.sheet?.sections || []) {
+    for (const item of section.items || []) {
+      const need = item.requires
+      if (!need || item.item_type !== 'yes_no') continue
+      if (Number(target[String(need.item)] ?? 0) < Number(need.min) && target[String(item.id)] !== 'no') {
+        target[String(item.id)] = 'no'
+        changed = true
+      }
+    }
+  }
+  return changed
+}
+
 watch(values, () => {
+  if (!props.sheet?.locked && applyRequirements(values.value)) return
   if (!hydrating && !props.sheet?.locked) keepLocal()
   if (!missing.value.length) return
   missing.value = unansweredIds()
@@ -55,6 +97,7 @@ watch(() => props.sheet, (sheet) => {
   if (!sheet?.locked && draft?.values) {
     for (const [id, value] of Object.entries(draft.values)) next[id] = value as string | number
   }
+  if (!sheet?.locked) applyRequirements(next)
   hydrating = true
   values.value = next
   hydrating = false
@@ -120,6 +163,7 @@ window.addEventListener('online', onOnline)
 onBeforeUnmount(() => {
   window.removeEventListener('online', onOnline)
   window.clearTimeout(syncTimer)
+  stopRepeat()
   setSync('idle')
 })
 
@@ -149,6 +193,64 @@ function countIsScale(item: any) {
 
 function countScale(item: any) {
   return Array.from({length: (countMax(item) ?? 0) + 1}, (_, index) => index)
+}
+
+function scaleLabel(item: any, n: number) {
+  return item.config?.open_max && n === countMax(item) ? `${n}+` : String(n)
+}
+
+let repeatTimer = 0
+
+function step(item: any, delta: number) {
+  const id = String(item.id)
+  const before = Number(values.value[id] || 0)
+  setCount(id, before + delta, countMax(item))
+  return Number(values.value[id] || 0) !== before
+}
+
+function startRepeat(item: any, delta: number) {
+  stopRepeat()
+  if (props.sheet.locked || !step(item, delta)) return
+  let steps = 0
+  const tick = () => {
+    if (!step(item, delta)) {
+      stopRepeat()
+      return
+    }
+    steps++
+    repeatTimer = window.setTimeout(tick, steps < 5 ? 140 : steps < 15 ? 70 : 35)
+  }
+  repeatTimer = window.setTimeout(tick, 380)
+}
+
+function stopRepeat() {
+  window.clearTimeout(repeatTimer)
+  repeatTimer = 0
+}
+
+function keyStep(event: MouseEvent, item: any, delta: number) {
+  if (event.detail === 0) step(item, delta)
+}
+
+function typeCount(item: any, event: Event) {
+  const input = event.target as HTMLInputElement
+  const digits = input.value.replace(/\D/g, '')
+  if (digits === '') return
+  setCount(String(item.id), Number(digits), countMax(item))
+  const shown = String(values.value[String(item.id)] ?? 0)
+  if (input.value !== shown) input.value = shown
+}
+
+function settleCount(item: any, event: Event) {
+  (event.target as HTMLInputElement).value = String(values.value[String(item.id)] || 0)
+}
+
+function selectAll(event: Event) {
+  (event.target as HTMLInputElement).select()
+}
+
+function blurInput(event: Event) {
+  (event.target as HTMLInputElement).blur()
 }
 
 function matchZeroed() {
@@ -325,6 +427,11 @@ async function reopen() {
 
     <p v-if="!sheet.sections?.length" class="text-lg text-[var(--color-text-muted)]">Für diese Saison gibt es noch keinen Schiri-Bogen. Den legt die FLOW-Admin an.</p>
 
+    <button v-else type="button" class="glass-btn-secondary scor-all" :aria-expanded="allOpen" @click="toggleAll">
+      <i class="bi" :class="allOpen ? 'bi-arrows-collapse' : 'bi-arrows-expand'" aria-hidden="true"/>
+      {{ allOpen ? 'Alles zuklappen' : 'Alles aufklappen' }}
+    </button>
+
     <div v-for="section in sheet.sections" :key="section.id" class="scor-lift">
     <section class="glass-card liquid-surface-inner scor-block" :class="{'is-done': sectionDone(section), 'is-open': isOpen(section.id)}">
       <button
@@ -334,12 +441,16 @@ async function reopen() {
           @click="toggleSection(section.id)"
       >
         <span class="scor-acc__title">{{ section.title }}</span>
+        <span v-if="section.core_values" class="scor-acc__tag">Grundwerte</span>
         <span v-if="sectionDone(section)" class="scor-acc__points">{{ sectionPoints(section) === null ? 'Match 0' : sectionPoints(section) }}</span>
         <i class="bi bi-chevron-down scor-acc__chevron" aria-hidden="true"/>
       </button>
       <div class="scor-acc__body" :class="{'is-open': isOpen(section.id)}">
       <div class="scor-acc__inner">
       <ScorText v-if="section.note" tag="div" class="scor-block__note" :text="section.note"/>
+      <p v-if="section.core_values" class="scor-block__note scor-block__note--strong">
+        Zählt nicht zum Spielergebnis, sondern zu den Grundwerten der Jurybewertung.
+      </p>
       <div v-for="item in section.items" :key="item.id" class="scor-q" :class="{'is-missing': missing.includes(String(item.id)), 'is-done': isAnswered(item, values[String(item.id)])}">
         <div class="scor-q__top">
           <ScorText tag="div" class="scor-q__label" :text="item.label"/>
@@ -349,12 +460,13 @@ async function reopen() {
           </p>
         </div>
 
-        <div v-if="item.item_type === 'yes_no'" class="scor-choices">
+        <p v-if="item.item_type === 'yes_no' && blocked(item)" class="scor-q__blocked">{{ requiredHint(item) }}</p>
+        <div v-if="item.item_type === 'yes_no'" class="scor-choices" :class="{'is-blocked': blocked(item)}">
           <button
               type="button"
               class="scor-choice"
               :class="{'is-on': values[String(item.id)] === 'yes'}"
-              :disabled="sheet.locked"
+              :disabled="sheet.locked || blocked(item)"
               @click="values[String(item.id)] = 'yes'"
           >
             <span>{{ item.config?.yes_label || 'Ja' }}</span>
@@ -364,7 +476,7 @@ async function reopen() {
               type="button"
               class="scor-choice"
               :class="{'is-on': values[String(item.id)] === 'no'}"
-              :disabled="sheet.locked"
+              :disabled="sheet.locked || blocked(item)"
               @click="values[String(item.id)] = 'no'"
           >
             <span>{{ item.config?.no_label || 'Nein' }}</span>
@@ -396,13 +508,47 @@ async function reopen() {
               :class="{'is-on': Number(values[String(item.id)] ?? 0) === n}"
               :disabled="sheet.locked"
               @click="setCount(String(item.id), n, countMax(item))"
-          >{{ n }}</button>
+          >{{ scaleLabel(item, n) }}</button>
         </div>
 
         <div v-else-if="item.item_type === 'count'" class="scor-count">
-          <button type="button" class="glass-btn-secondary scor-count__btn" aria-label="weniger" :disabled="sheet.locked" @click="setCount(String(item.id), Number(values[String(item.id)] || 0) - 1, countMax(item))">−</button>
-          <span class="scor-count__value">{{ values[String(item.id)] || 0 }}</span>
-          <button type="button" class="glass-btn-secondary scor-count__btn" aria-label="mehr" :disabled="sheet.locked" @click="setCount(String(item.id), Number(values[String(item.id)] || 0) + 1, countMax(item))">+</button>
+          <button
+              type="button"
+              class="glass-btn-secondary scor-count__btn"
+              aria-label="weniger"
+              :disabled="sheet.locked"
+              @pointerdown.prevent="startRepeat(item, -1)"
+              @pointerup="stopRepeat"
+              @pointerleave="stopRepeat"
+              @pointercancel="stopRepeat"
+              @contextmenu.prevent
+              @click="keyStep($event, item, -1)"
+          >−</button>
+          <input
+              class="scor-count__value"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              :value="values[String(item.id)] || 0"
+              :disabled="sheet.locked"
+              :aria-label="`${item.label}, Anzahl eintragen`"
+              @focus="selectAll"
+              @input="typeCount(item, $event)"
+              @blur="settleCount(item, $event)"
+              @keydown.enter.prevent="blurInput"
+          />
+          <button
+              type="button"
+              class="glass-btn-secondary scor-count__btn"
+              aria-label="mehr"
+              :disabled="sheet.locked"
+              @pointerdown.prevent="startRepeat(item, 1)"
+              @pointerup="stopRepeat"
+              @pointerleave="stopRepeat"
+              @pointercancel="stopRepeat"
+              @contextmenu.prevent
+              @click="keyStep($event, item, 1)"
+          >+</button>
         </div>
         </div>
       </div>
@@ -786,14 +932,70 @@ html[data-theme='dark'] .scor-block.is-done .scor-acc__points {
 }
 
 .scor-count__value {
+  width: 100%;
+  min-width: 0;
+  min-height: 4.25rem;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px dashed var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
   text-align: center;
   font-size: 2.4rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
+.scor-count__value:focus {
+  outline: none;
+  border-bottom-color: #146c36;
+  background: color-mix(in srgb, #146c36 8%, transparent);
+}
+
+.scor-count__value:disabled {
+  border-bottom-color: transparent;
+}
+
 .scor-count__btn {
   box-sizing: border-box;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.scor-all {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+}
+
+.scor-acc__tag {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #7c3aed 14%, transparent);
+  color: #6d28d9;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.scor-block__note--strong {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scor-q__blocked {
+  margin: 0 0 0.45rem;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.scor-choices.is-blocked .scor-choice {
+  opacity: 0.45;
 }
 
 .scor-sheet__bar {

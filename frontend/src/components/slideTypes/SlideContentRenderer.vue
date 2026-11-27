@@ -5,6 +5,8 @@ import RobotGameSlideContentRenderer from './robotGame/RobotGameSlideContentRend
 import {ImageSlideContent} from "../../models/imageSlideContent.js";
 import {Slide} from "../../models/slide.js";
 import {RobotGameSlideContent} from "../../models/robotGameSlideContent.js";
+import FutureGameSlideContentRenderer from './futureGame/FutureGameSlideContentRenderer.vue';
+import {FutureGameSlideContent} from "@/models/futureGameSlideContent";
 import {UrlSlideContent} from "../../models/urlSlideContent.js";
 import UrlSlideContentRenderer from "./UrlSlideContentRenderer.vue";
 import {FabricSlideContent} from "../../models/fabricSlideContent.js";
@@ -86,6 +88,8 @@ const componentName = computed(() => {
     return ImageSlideContentRenderer;
   } else if (content instanceof RobotGameSlideContent) {
     return RobotGameSlideContentRenderer;
+  } else if (content instanceof FutureGameSlideContent) {
+    return FutureGameSlideContentRenderer;
   } else if (content instanceof UrlSlideContent) {
     return UrlSlideContentRenderer;
   } else if (content instanceof FabricSlideContent) {
@@ -109,6 +113,7 @@ const componentName = computed(() => {
 
 const useDefaultAdvance = computed(() => {
   return !(props.slide.content instanceof RobotGameSlideContent)
+      && !(props.slide.content instanceof FutureGameSlideContent)
       && !(props.slide.content instanceof TeamsTableSlideContent);
 });
 

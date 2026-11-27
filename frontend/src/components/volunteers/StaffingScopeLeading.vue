@@ -67,7 +67,7 @@ const showScopeIcon = computed(() => !!iconClass.value)
   />
   <i
       v-else-if="showScopeIcon && !boxed"
-      class="bi vol-staffing-filter__icon"
+      class="bi glass-filter-chip__icon"
       :class="iconClass!"
       aria-hidden="true"
   />

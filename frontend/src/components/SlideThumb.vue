@@ -16,8 +16,8 @@ const props = withDefaults(defineProps<{
   defaultTransitionTime: 15,
 });
 
-// Robot game slides page through their tables at their own pace.
-const hasDuration = computed(() => props.slide.type !== 'RobotGameSlideContent');
+// Game result slides page through their tables at their own pace.
+const hasDuration = computed(() => !['RobotGameSlideContent', 'FutureGameSlideContent'].includes(props.slide.type));
 const hasOwnDuration = computed(() => (props.slide.transition_time ?? 0) > 0);
 const effectiveDuration = computed(() => hasOwnDuration.value ? props.slide.transition_time : props.defaultTransitionTime);
 

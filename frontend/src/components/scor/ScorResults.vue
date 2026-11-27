@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import axios from 'axios'
+import PageTabs from '@hands-on/glass/page-tabs'
 
 const props = defineProps<{results: any}>()
 const emit = defineEmits<{saved: [results: any]}>()
@@ -10,6 +11,8 @@ const mailNotice = ref('')
 const awardBusy = ref(false)
 const publishOpen = ref(false)
 const resetOpen = ref(false)
+const reopenOpen = ref(false)
+const mailOpen = ref(false)
 const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
@@ -30,7 +33,21 @@ const awardColumns = [
 ]
 const categoryIds = ['research', 'robotdesign', 'core_values']
 const presentRoot = ref<HTMLElement | null>(null)
-const presenting = ref(false)
+const gameRoot = ref<HTMLElement | null>(null)
+const presentMode = ref<'awards' | 'spiel' | null>(null)
+const presenting = computed(() => presentMode.value === 'awards')
+const gamePresenting = computed(() => presentMode.value === 'spiel')
+const REVEAL_MS = 1500
+const KEEP_READABLE = 5
+const MIN_ROW_SCALE = 0.32
+const revealed = ref(0)
+const spotlight = ref<number | null>(null)
+const rowScales = ref<number[]>([])
+let revealTimer = 0
+let spotlightTimer = 0
+let refitTimer = 0
+let naturalRowPx = 0
+let fitObserver: ResizeObserver | null = null
 let storedAwardsKey: string | null = null
 let awardSaveTimer = 0
 let awardSave: Promise<void> | null = null
@@ -190,10 +207,11 @@ function toggleAward(team: any, category: string) {
   if (!on) trophies.value.push({team: team.id, category})
 }
 
-async function startPresent() {
-  presenting.value = true
+async function startPresent(mode: 'awards' | 'spiel' = 'awards') {
+  if (mode === 'spiel') resetReveal()
+  presentMode.value = mode
   await nextTick()
-  const node = presentRoot.value
+  const node = mode === 'spiel' ? gameRoot.value : presentRoot.value
   if (!node || document.fullscreenElement) return
   try {
     await node.requestFullscreen()
@@ -203,7 +221,8 @@ async function startPresent() {
 }
 
 function stopPresent() {
-  presenting.value = false
+  presentMode.value = null
+  stopReveal()
   if (document.fullscreenElement) {
     void document.exitFullscreen().catch(() => {})
   }
@@ -211,19 +230,212 @@ function stopPresent() {
 
 function onPresentKey(event: KeyboardEvent) {
   if (event.key === 'Escape') stopPresent()
+  else if (gamePresenting.value && event.key.toLowerCase() === 'g' && !event.repeat) toggleReveal()
 }
 
 function onFullscreenChange() {
-  if (!document.fullscreenElement) presenting.value = false
+  if (!document.fullscreenElement) stopPresent()
 }
 
-watch(presenting, (on) => {
+/** Latest scoring round with at least one sheet. */
+const latestRound = computed(() => {
+  const played = (props.results?.rounds || [])
+      .map((round: any) => Number(round.round))
+      .filter((round: number) => byRobot.value.some((team) => roundCell(team, round)))
+  return played.length ? Math.max(...played) : null
+})
+
+function resetReveal() {
+  stopReveal()
+  window.clearTimeout(spotlightTimer)
+  window.clearTimeout(refitTimer)
+  revealed.value = 0
+  spotlight.value = null
+  rowScales.value = []
+  naturalRowPx = 0
+}
+
+function stopReveal() {
+  window.clearInterval(revealTimer)
+  revealTimer = 0
+}
+
+/** G starts the reveal from the bottom row, G again pauses or resumes it. */
+function toggleReveal() {
+  if (revealTimer) {
+    stopReveal()
+    return
+  }
+  if (revealed.value >= byRobot.value.length) return
+  revealNext()
+  if (revealed.value < byRobot.value.length) revealTimer = window.setInterval(revealNext, REVEAL_MS)
+}
+
+function revealNext() {
+  const count = byRobot.value.length
+  revealed.value = Math.min(revealed.value + 1, count)
+  spotlight.value = count - revealed.value
+  window.clearTimeout(spotlightTimer)
+  if (revealed.value >= count) {
+    stopReveal()
+    spotlightTimer = window.setTimeout(() => {
+      spotlight.value = null
+    }, 650)
+  }
+  queueFit()
+}
+
+function covered(index: number) {
+  return gamePresenting.value && index < byRobot.value.length - revealed.value
+}
+
+function justRevealed(index: number) {
+  return gamePresenting.value && spotlight.value === index
+}
+
+function rowPresentStyle(index: number) {
+  if (!gamePresenting.value || covered(index)) return undefined
+  const scale = rowScales.value[index] ?? 1
+  return {'--row-scale': scale.toFixed(3)}
+}
+
+/**
+ * Full size until the rows reach the top. Further rows squeeze the lower teams
+ * on a log curve; the best five stay large. Everything stays inside the stage.
+ */
+function computeScales(count: number, shown: number, available: number, natural: number): number[] {
+  const scales = Array(count).fill(0)
+  if (shown <= 0 || natural <= 0 || available <= 0) return scales
+  const start = count - shown
+  for (let i = start; i < count; i++) scales[i] = 1
+  const overflow = shown * natural - available
+  if (overflow <= 0.5) return scales
+
+  const keep = Math.min(KEEP_READABLE, count)
+  const tail: number[] = []
+  for (let i = Math.max(start, keep); i < count; i++) tail.push(i)
+  if (tail.length === 0) {
+    const scale = available / (shown * natural)
+    for (let i = start; i < count; i++) scales[i] = scale
+    return scales
+  }
+
+  const weights = tail.map((_, t) => Math.log2(t + 2))
+  const maxRemove = (1 - MIN_ROW_SCALE) * natural
+  const removed = tail.map(() => 0)
+  let done = 0
+  for (let guard = 0; guard < 6 && done < overflow - 0.5; guard++) {
+    let open = 0
+    tail.forEach((_, t) => {
+      if (removed[t] < maxRemove - 0.1) open += weights[t]
+    })
+    if (open <= 0) break
+    const still = overflow - done
+    let consumed = 0
+    tail.forEach((_, t) => {
+      if (removed[t] >= maxRemove - 0.1) return
+      const add = Math.min(weights[t] / open * still, maxRemove - removed[t])
+      removed[t] += add
+      consumed += add
+    })
+    done += consumed
+    if (consumed < 0.5) break
+  }
+  tail.forEach((index, t) => {
+    scales[index] = Math.max(MIN_ROW_SCALE, 1 - removed[t] / natural)
+  })
+
+  let height = 0
+  for (let i = start; i < count; i++) height += scales[i] * natural
+  let over = height - available
+  for (let i = count - 1; i >= start && over > 0.5; i--) {
+    const floor = i < keep ? 0.62 : 0.18
+    const take = Math.min(Math.max(0, scales[i] - floor) * natural, over)
+    scales[i] -= take / natural
+    over -= take
+  }
+  if (over > 0.5) {
+    height = 0
+    for (let i = start; i < count; i++) height += scales[i] * natural
+    const factor = available / height
+    for (let i = start; i < count; i++) scales[i] *= factor
+  }
+  return scales
+}
+
+function stageRoom(): {available: number, natural: number} | null {
+  const root = gameRoot.value
+  if (!root) return null
+  const body = root.querySelector<HTMLElement>('tbody')
+  if (!body) return null
+  const available = body.clientHeight
+  root.querySelectorAll<HTMLElement>('tbody tr[data-index]').forEach((row) => {
+    const index = Number(row.dataset.index)
+    if (row.classList.contains('is-covered') || !Number.isInteger(index)) return
+    const scale = rowScales.value[index] || 1
+    if (scale < 0.98) return
+    const height = row.getBoundingClientRect().height
+    if (height > naturalRowPx) naturalRowPx = height
+  })
+  return {available, natural: naturalRowPx || 96}
+}
+
+function fitRows() {
+  if (!gamePresenting.value) return
+  const room = stageRoom()
+  if (!room || room.available < 40) return
+  rowScales.value = computeScales(byRobot.value.length, revealed.value, room.available, room.natural)
+  nextTick(() => requestAnimationFrame(correctOverflow))
+  window.clearTimeout(refitTimer)
+  const known = naturalRowPx
+  refitTimer = window.setTimeout(() => {
+    if (!gamePresenting.value) return
+    stageRoom()
+    if (naturalRowPx > known + 4) fitRows()
+    else correctOverflow()
+  }, 520)
+}
+
+/** Rendered rows run a little taller than the estimate. Shrink once more so the top stays on screen. */
+function correctOverflow() {
+  const body = gameRoot.value?.querySelector('tbody')
+  if (!body || !gamePresenting.value) return
+  let used = 0
+  body.querySelectorAll('tr[data-index]:not(.is-covered)').forEach((row) => {
+    used += row.getBoundingClientRect().height
+  })
+  const room = body.clientHeight
+  if (used <= room + 1 || used <= 0) return
+  const factor = room / used
+  rowScales.value = rowScales.value.map((scale, index) => covered(index) ? 0 : scale * factor)
+}
+
+function queueFit() {
+  nextTick(() => requestAnimationFrame(fitRows))
+}
+
+function watchStageSize(on: boolean) {
+  fitObserver?.disconnect()
+  fitObserver = null
+  if (!on || !gameRoot.value || !window.ResizeObserver) return
+  fitObserver = new ResizeObserver(() => fitRows())
+  fitObserver.observe(gameRoot.value)
+  queueFit()
+}
+
+watch(presentMode, (on) => {
   if (on) {
     document.addEventListener('fullscreenchange', onFullscreenChange)
     document.addEventListener('keydown', onPresentKey)
+    if (on === 'spiel') nextTick(() => watchStageSize(true))
   } else {
     document.removeEventListener('fullscreenchange', onFullscreenChange)
     document.removeEventListener('keydown', onPresentKey)
+    watchStageSize(false)
+    window.clearTimeout(spotlightTimer)
+    window.clearTimeout(refitTimer)
+    naturalRowPx = 0
+    rowScales.value = []
   }
 })
 
@@ -310,6 +522,22 @@ async function confirmPublish() {
   await releaseEvent()
 }
 
+async function confirmReopen() {
+  reopenOpen.value = false
+  awardError.value = ''
+  try {
+    const {data} = await axios.post(`/scor/events/${props.results.event.id}/reopen`)
+    emit('saved', {...props.results, lifecycle: data})
+  } catch (e: any) {
+    awardError.value = e?.response?.data?.error || 'Wieder öffnen fehlgeschlagen.'
+  }
+}
+
+function confirmMail() {
+  mailOpen.value = false
+  void sendMail()
+}
+
 async function releaseEvent() {
   const {data} = await axios.post(`/scor/events/${props.results.event.id}/release`)
   emit('saved', {...props.results, lifecycle: data})
@@ -372,56 +600,12 @@ const awardSortKey = ref('place')
 const awardSortDir = ref<'asc' | 'desc'>('asc')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const board = ref<'spiel' | 'jury' | 'awards'>('spiel')
-const switchEl = ref<HTMLElement | null>(null)
-const lens = ref({on: false, x: 0, y: 0, width: 0, height: 0, swoosh: false})
-let lensPlaced = false
-let lensResize: ResizeObserver | null = null
-let lensSwooshTimer = 0
-
-function placeLens() {
-  const nav = switchEl.value
-  if (!nav) return
-  const active = nav.querySelector('.scor-switch__btn.is-on')
-  if (!(active instanceof HTMLElement)) {
-    lensPlaced = false
-    lens.value = {...lens.value, on: false, swoosh: false}
-    return
-  }
-  const navBox = nav.getBoundingClientRect()
-  const box = active.getBoundingClientRect()
-  const x = box.left - navBox.left
-  const y = box.top - navBox.top
-  const moved = lensPlaced && Math.abs(x - lens.value.x) > 1
-  if (lensPlaced && !moved && Math.abs(box.width - lens.value.width) < 1 && Math.abs(box.height - lens.value.height) < 1) return
-  lens.value = {on: true, x, y, width: box.width, height: box.height, swoosh: moved}
-  lensPlaced = true
-  if (!moved) return
-  window.clearTimeout(lensSwooshTimer)
-  lensSwooshTimer = window.setTimeout(() => {
-    lens.value = {...lens.value, swoosh: false}
-  }, 280)
-}
-
-watch(switchEl, (el) => {
-  lensResize?.disconnect()
-  lensResize = null
-  lensPlaced = false
-  if (!el) return
-  nextTick(() => {
-    placeLens()
-    if (typeof ResizeObserver !== 'undefined') {
-      lensResize = new ResizeObserver(() => placeLens())
-      lensResize.observe(el)
-    }
-  })
-})
-
-watch(board, () => nextTick(() => placeLens()))
-
 onBeforeUnmount(() => {
-  lensResize?.disconnect()
-  window.clearTimeout(lensSwooshTimer)
   window.clearTimeout(awardSaveTimer)
+  window.clearTimeout(spotlightTimer)
+  window.clearTimeout(refitTimer)
+  stopReveal()
+  fitObserver?.disconnect()
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPresentKey)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
@@ -529,54 +713,70 @@ function formatPoints(value: number) {
   </div>
 
   <div v-else class="scor-results">
-    <div ref="switchEl" class="scor-switch" role="tablist" aria-label="Tabelle">
-      <span
-          v-show="lens.on"
-          class="scor-switch__lens"
-          :class="{'is-swoosh': lens.swoosh}"
-          :style="{
-            width: `${lens.width}px`,
-            height: `${lens.height}px`,
-            transform: `translate(${lens.x}px, ${lens.y}px)`,
-          }"
-          aria-hidden="true"
-      >
-        <span class="scor-switch__lens-glass"/>
-      </span>
-      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'spiel'}" :aria-selected="board === 'spiel'" @click="board = 'spiel'">Spiel</button>
-      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'jury'}" :aria-selected="board === 'jury'" @click="board = 'jury'">Jury-Bewertungen</button>
-      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'awards'}" :aria-selected="board === 'awards'" @click="board = 'awards'">Auszeichnungen</button>
-    </div>
+    <PageTabs
+        fill
+        aria-label="Tabelle"
+        :tabs="[
+          {id: 'spiel', label: 'Spiel'},
+          {id: 'jury', label: 'Jury-Bewertungen'},
+          {id: 'awards', label: 'Auszeichnungen'},
+        ]"
+        :model-value="board"
+        @update:model-value="board = $event"
+    />
 
     <section v-if="board === 'spiel'" class="scor-results__block">
-      <div class="scor-board glass-card liquid-surface-inner">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Team</th>
-              <th v-for="round in results.rounds" :key="round.round" scope="col">{{ round.label }}</th>
-              <th scope="col">Punktedurchschnitt</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="team in byRobot" :key="team.id">
-              <th scope="row">
-                <span class="scor-team__name">{{ team.name }}</span>
-                <span class="scor-team__number">{{ team.number }}</span>
-              </th>
-              <td v-for="round in results.rounds" :key="round.round">
-                <template v-if="roundCell(team, round.round)">
-                  <span class="scor-points">{{ roundCell(team, round.round).points }}</span>
-                  <span v-if="!roundCell(team, round.round).confirmed" class="scor-points__state">begonnen</span>
-                </template>
-                <span v-else class="scor-points__state">–</span>
-              </td>
-              <td>
-                <span class="scor-points scor-points--best">ø {{ formatPoints(team.robot) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="scor-award-tools">
+        <p class="scor-results__note">
+          Im Vollbild sind alle Zeilen verdeckt. Drücke G, damit sie von unten nach oben nacheinander erscheinen.
+          G hält an und läuft weiter. Passen nicht alle Teams auf den Bildschirm, werden die unteren Zeilen kleiner.
+        </p>
+        <button type="button" class="scor-present" :aria-label="gamePresenting ? 'Vollbild beenden' : 'Vollbild'" @click="gamePresenting ? stopPresent() : startPresent('spiel')">
+          <i class="bi" :class="gamePresenting ? 'bi-fullscreen-exit' : 'bi-fullscreen'" aria-hidden="true"/>
+        </button>
+      </div>
+      <div ref="gameRoot" class="scor-stage scor-game" :class="{'is-present': gamePresenting}">
+        <div class="scor-board glass-card liquid-surface-inner">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Team</th>
+                <th
+                    v-for="round in results.rounds"
+                    :key="round.round"
+                    scope="col"
+                    :class="{'is-latest': round.round === latestRound}"
+                >{{ round.label }}</th>
+                <th scope="col">Punktedurchschnitt</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                  v-for="(team, index) in byRobot"
+                  :key="team.id"
+                  :data-index="index"
+                  :class="{'is-covered': covered(index), 'is-current': justRevealed(index)}"
+                  :style="rowPresentStyle(index)"
+                  :aria-hidden="covered(index) ? 'true' : undefined"
+              >
+                <th scope="row">
+                  <span class="scor-team__name">{{ team.name }}</span>
+                  <span class="scor-team__number">{{ team.number }}</span>
+                </th>
+                <td v-for="round in results.rounds" :key="round.round" :class="{'is-latest': round.round === latestRound}">
+                  <template v-if="roundCell(team, round.round)">
+                    <span class="scor-points">{{ roundCell(team, round.round).points }}</span>
+                    <span v-if="!gamePresenting && !roundCell(team, round.round).confirmed" class="scor-points__state">begonnen</span>
+                  </template>
+                  <span v-else class="scor-points__state">–</span>
+                </td>
+                <td>
+                  <span class="scor-points scor-points--best">ø {{ formatPoints(team.robot) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <p class="scor-results__note">
         Gespeicherte Bögen zählen mit. „begonnen“ heißt: Schiri und Team haben noch nicht beide bestätigt.
@@ -738,19 +938,31 @@ function formatPoints(value: number) {
         </div>
         <p v-if="results.lifecycle.closed && !results.lifecycle.released" class="scor-results__note">
           Die Auswertung ist festgeschrieben. Änderungen sind nicht mehr möglich. Öffentlich sichtbar ist sie noch nicht.
+          <template v-if="!results.flow_admin">Veröffentlichen kann nur ein FLOW-Admin.</template>
         </p>
-        <button
-            v-if="results.lifecycle.closed && !results.lifecycle.released"
-            type="button"
-            class="scor-finalize"
-            @click="publishOpen = true"
-        >
-          Veröffentlichen
-        </button>
+        <div v-if="results.lifecycle.closed && !results.lifecycle.released" class="scor-award-actions">
+          <button type="button" class="glass-btn-secondary scor-reset" @click="reopenOpen = true">
+            Auswertung wieder öffnen
+          </button>
+          <button
+              v-if="results.flow_admin"
+              type="button"
+              class="scor-finalize"
+              @click="publishOpen = true"
+          >
+            Veröffentlichen
+          </button>
+        </div>
         <p v-if="results.lifecycle.released" class="scor-results__note">
           Die Ergebnisse stehen auf der Standortseite.
+          <template v-if="!results.flow_admin">Zurücknehmen kann das nur ein FLOW-Admin.</template>
         </p>
-        <button v-if="results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
+        <div v-if="results.lifecycle.released" class="scor-award-actions">
+          <button v-if="results.flow_admin" type="button" class="glass-btn-secondary scor-reset" @click="reopenOpen = true">
+            Auswertung wieder öffnen
+          </button>
+          <button type="button" class="glass-btn-secondary scor-reset" @click="mailOpen = true">Jury-PDF an Coaches</button>
+        </div>
       </template>
       <p v-if="mailNotice" class="scor-results__note">{{ mailNotice }}</p>
       <div v-if="resetOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-reset-title">
@@ -766,10 +978,31 @@ function formatPoints(value: number) {
       <div v-if="publishOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-publish-title">
         <div class="scor-publish__card">
           <h2 id="scor-publish-title">Ergebnisse veröffentlichen</h2>
-          <p>Danach sind die Ergebnisse auf der Standortseite zu sehen. Ein Wiedereröffnen ist nicht mehr möglich.</p>
+          <p>Danach sind die Ergebnisse auf der Standortseite zu sehen. Zurücknehmen kann das nur ein FLOW-Admin.</p>
           <div class="scor-publish__actions">
             <button type="button" class="glass-btn-secondary" @click="publishOpen = false">Abbrechen</button>
             <button type="button" class="glass-btn-accent" @click="confirmPublish">Veröffentlichen</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="reopenOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-reopen-title">
+        <div class="scor-publish__card">
+          <h2 id="scor-reopen-title">Auswertung wieder öffnen</h2>
+          <p v-if="results.lifecycle.released">Die Ergebnisse verschwinden von der Standortseite. Die Festschreibung wird aufgehoben. Bögen, Punkte, Pokale und Nominierungen bleiben.</p>
+          <p v-else>Die Festschreibung wird aufgehoben. Bögen, Punkte, Pokale und Nominierungen bleiben.</p>
+          <div class="scor-publish__actions">
+            <button type="button" class="glass-btn-secondary" @click="reopenOpen = false">Abbrechen</button>
+            <button type="button" class="glass-btn-accent" @click="confirmReopen">Wieder öffnen</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="mailOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-mail-title">
+        <div class="scor-publish__card">
+          <h2 id="scor-mail-title">Jury-PDF an Coaches</h2>
+          <p>Die Mails gehen sofort an die Coaches. Jedes Team mit einer Coach-Adresse bekommt das Jury-PDF.</p>
+          <div class="scor-publish__actions">
+            <button type="button" class="glass-btn-secondary" @click="mailOpen = false">Abbrechen</button>
+            <button type="button" class="glass-btn-accent" @click="confirmMail">Mails senden</button>
           </div>
         </div>
       </div>
@@ -782,114 +1015,6 @@ function formatPoints(value: number) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.scor-switch {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  gap: 0.2rem;
-  min-height: 3.65rem;
-  padding: 0.28rem;
-  box-sizing: border-box;
-  overflow: hidden;
-  border: 1px solid var(--liquid-border);
-  border-radius: 1.85rem;
-  background: var(--liquid-tile-bg);
-  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  box-shadow: var(--liquid-shadow);
-}
-
-.scor-switch::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 34%, transparent 58%);
-}
-
-html[data-theme='dark'] .scor-switch::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 48%);
-}
-
-.scor-switch__lens {
-  position: absolute;
-  z-index: 1;
-  top: 0;
-  left: 0;
-  border-radius: 1.5rem;
-  pointer-events: none;
-  transition: transform 0.62s cubic-bezier(0.22, 1.45, 0.36, 1);
-}
-
-.scor-switch__lens-glass {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--color-bg, #fff) 88%, transparent);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 1),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.08),
-    0 6px 16px rgba(15, 23, 42, 0.12);
-  transform: scaleX(1) scaleY(1);
-  transition: transform 0.5s cubic-bezier(0.22, 1.35, 0.36, 1);
-}
-
-.scor-switch__lens.is-swoosh .scor-switch__lens-glass {
-  transform: scaleX(1.22) scaleY(0.9);
-}
-
-html[data-theme='dark'] .scor-switch__lens-glass {
-  background: color-mix(in srgb, #fff 22%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 6px 16px rgba(0, 0, 0, 0.28);
-}
-
-.scor-switch__btn {
-  position: relative;
-  z-index: 2;
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 3rem;
-  margin: 0;
-  padding: 0.45rem 0.55rem;
-  border: 0;
-  border-radius: 1.5rem;
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1.15;
-  text-align: center;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.scor-switch__btn:hover,
-.scor-switch__btn:focus-visible {
-  color: var(--color-text);
-  outline: none;
-}
-
-.scor-switch__btn.is-on,
-.scor-switch__btn.is-on:hover,
-.scor-switch__btn.is-on:focus-visible {
-  color: var(--color-accent, #e85d04);
-  font-weight: 800;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scor-switch__lens,
-  .scor-switch__lens-glass {
-    transition: none;
-  }
 }
 
 .scor-results__title {
@@ -1088,6 +1213,149 @@ html[data-theme='dark'] .scor-switch__lens-glass {
   width: 3.4rem;
   height: 3.4rem;
   font-size: 1.85rem;
+}
+
+.scor-game.is-present,
+.scor-game:fullscreen {
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.scor-game:fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.scor-game.is-present .scor-board,
+.scor-game:fullscreen .scor-board {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.scor-game.is-present .scor-board table,
+.scor-game:fullscreen .scor-board table {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.scor-game.is-present thead,
+.scor-game:fullscreen thead,
+.scor-game.is-present tbody,
+.scor-game:fullscreen tbody,
+.scor-game.is-present tr,
+.scor-game:fullscreen tr {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.scor-game.is-present thead,
+.scor-game:fullscreen thead {
+  flex: none;
+  flex-direction: column;
+}
+
+.scor-game.is-present tbody,
+.scor-game:fullscreen tbody {
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.scor-game.is-present thead th:first-child,
+.scor-game:fullscreen thead th:first-child,
+.scor-game.is-present tbody th,
+.scor-game:fullscreen tbody th {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.scor-game.is-present thead th:not(:first-child),
+.scor-game:fullscreen thead th:not(:first-child),
+.scor-game.is-present tbody td,
+.scor-game:fullscreen tbody td {
+  flex: 0 0 9rem;
+}
+
+.scor-game.is-present .scor-board th,
+.scor-game.is-present .scor-board td,
+.scor-game:fullscreen .scor-board th,
+.scor-game:fullscreen .scor-board td {
+  padding: calc(1rem * var(--row-scale, 1)) calc(1.25rem * var(--row-scale, 1));
+  vertical-align: middle;
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out, background-color 0.45s ease, padding 0.45s ease, font-size 0.45s ease;
+}
+
+.scor-game:fullscreen thead th,
+.scor-game.is-present thead th {
+  font-size: 1.4rem;
+}
+
+.scor-game:fullscreen .scor-team__name,
+.scor-game.is-present .scor-team__name {
+  font-size: calc(2rem * var(--row-scale, 1));
+}
+
+.scor-game:fullscreen .scor-team__number,
+.scor-game.is-present .scor-team__number {
+  font-size: calc(1.2rem * var(--row-scale, 1));
+}
+
+.scor-game:fullscreen .scor-points,
+.scor-game.is-present .scor-points {
+  font-size: calc(2.4rem * var(--row-scale, 1));
+}
+
+.scor-game.is-present tbody tr.is-covered,
+.scor-game:fullscreen tbody tr.is-covered {
+  flex: 0 0 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.scor-game.is-present tbody tr.is-covered > *,
+.scor-game:fullscreen tbody tr.is-covered > *,
+.scor-game.is-present tbody tr.is-covered *,
+.scor-game:fullscreen tbody tr.is-covered * {
+  padding: 0;
+  border-width: 0;
+  height: 0;
+  font-size: 0;
+  line-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.scor-game.is-present tbody tr.is-covered > *,
+.scor-game:fullscreen tbody tr.is-covered > * {
+  transform: translateY(0.4rem);
+}
+
+.scor-game .is-latest {
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
+}
+
+.scor-game thead th.is-latest {
+  color: var(--color-accent);
+  box-shadow: inset 0 -3px 0 var(--color-accent);
+}
+
+.scor-game tbody tr.is-current td,
+.scor-game tbody tr.is-current th {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg));
+}
+
+.scor-game tbody tr.is-current td.is-latest {
+  background: color-mix(in srgb, var(--color-accent) 30%, var(--color-bg));
 }
 
 .scor-present {

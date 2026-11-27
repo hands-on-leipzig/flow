@@ -405,8 +405,8 @@ onMounted(async () => {
             v-for="program in programChips"
             :key="programId(program)"
             type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': activeProgramFilters.has(programId(program))}"
+            class="glass-filter-chip"
+            :class="{'glass-filter-chip--active': activeProgramFilters.has(programId(program))}"
             :aria-pressed="activeProgramFilters.has(programId(program))"
             @click="toggleProgramFilter(programId(program))"
         >
@@ -414,9 +414,9 @@ onMounted(async () => {
               :program="program"
               size="chip"
               decorative
-              class="vol-staffing-filter__logo"
+              class="glass-filter-chip__logo"
           />
-          <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+          <span class="glass-filter-chip__label">{{ programDisplayName(program) }}</span>
         </button>
         <span class="vol-staffing-filters__sep" aria-hidden="true"/>
         </template>
@@ -424,33 +424,33 @@ onMounted(async () => {
             v-for="level in EVENT_LEVELS"
             :key="`level-${level}`"
             type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': activeLevelFilters.has(level)}"
+            class="glass-filter-chip"
+            :class="{'glass-filter-chip--active': activeLevelFilters.has(level)}"
             :aria-pressed="activeLevelFilters.has(level)"
             @click="toggleLevelFilter(level)"
         >
-          <span class="vol-staffing-filter__label">{{ level }}</span>
+          <span class="glass-filter-chip__label">{{ level }}</span>
         </button>
       </template>
       <template #trailing>
         <span class="vol-staffing-filters__sep" aria-hidden="true"/>
         <button
             type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': upcomingOnly}"
+            class="glass-filter-chip"
+            :class="{'glass-filter-chip--active': upcomingOnly}"
             :aria-pressed="upcomingOnly"
             @click="upcomingOnly = !upcomingOnly"
         >
-          <span class="vol-staffing-filter__label">Nur Zukunft</span>
+          <span class="glass-filter-chip__label">Nur Zukunft</span>
         </button>
         <button
             type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': withoutPlanOnly}"
+            class="glass-filter-chip"
+            :class="{'glass-filter-chip--active': withoutPlanOnly}"
             :aria-pressed="withoutPlanOnly"
             @click="withoutPlanOnly = !withoutPlanOnly"
         >
-          <span class="vol-staffing-filter__label">Noch ohne Plan</span>
+          <span class="glass-filter-chip__label">Noch ohne Plan</span>
         </button>
         <span class="vol-staffing-filters__sep" aria-hidden="true"/>
         <div
@@ -458,18 +458,18 @@ onMounted(async () => {
             role="radiogroup"
             aria-label="Helfer:innen"
         >
-          <i class="bi bi-person-heart vol-staffing-filter__icon" aria-hidden="true"/>
+          <i class="bi bi-person-heart glass-filter-chip__icon" aria-hidden="true"/>
           <button
               v-for="option in HELFER_FILTERS"
               :key="option.id"
               type="button"
               role="radio"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': helferFilter === option.id}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': helferFilter === option.id}"
               :aria-checked="helferFilter === option.id"
               @click="helferFilter = option.id"
           >
-            <span class="vol-staffing-filter__label">{{ option.label }}</span>
+            <span class="glass-filter-chip__label">{{ option.label }}</span>
           </button>
         </div>
         <span class="vol-toolbar__count vol-staffing-filters__count">

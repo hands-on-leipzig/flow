@@ -122,23 +122,22 @@ onMounted(() => {
       <p class="text-sm text-[var(--color-text-muted)]">Future, einmal pro Saison. Jury: Zeilen und Beschriftungen. Schiri: zusätzlich die Art der Frage.</p>
     </div>
 
-    <div class="flex flex-wrap items-center gap-3">
-      <label class="text-sm">
-        Saison
-        <select v-model="seasonId" class="glass-input glass-input--sm ml-2" @change="load">
-          <option v-for="season in seasons" :key="season.id" :value="season.id">{{ season.name || season.year }}</option>
-        </select>
-      </label>
-      <PageTabs
-          aria-label="Bogen"
-          :tabs="[
-            {id: 'jury', label: 'Jury', icon: 'bi-people'},
-            {id: 'referee', label: 'Schiri', icon: 'bi-clipboard-check'},
-          ]"
-          :model-value="kind"
-          @update:model-value="kind = $event"
-      />
-    </div>
+    <label class="text-sm block">
+      Saison
+      <select v-model="seasonId" class="glass-input glass-input--sm ml-2" @change="load">
+        <option v-for="season in seasons" :key="season.id" :value="season.id">{{ season.name || season.year }}</option>
+      </select>
+    </label>
+
+    <PageTabs
+        aria-label="Bogen"
+        :tabs="[
+          {id: 'jury', label: 'Jury', icon: 'bi-people'},
+          {id: 'referee', label: 'Schiri', icon: 'bi-clipboard-check'},
+        ]"
+        :model-value="kind"
+        @update:model-value="kind = $event"
+    />
 
     <p v-if="kind === 'jury'" class="text-xs text-[var(--color-text-muted)]">
       Stufen bleiben fest:

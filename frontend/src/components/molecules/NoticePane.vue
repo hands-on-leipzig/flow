@@ -50,9 +50,10 @@ const visibleMessages = computed(() => {
   if (!key) return []
   if (key === TEAMS_PROGRAM_HELP_KEY) {
     const compact = programCompact(String(route.params.program ?? ''))
+    // Program-less notices belong to the whole page, the others to their program's tab.
     return all.filter((row) =>
       row.screen_key === TEAMS_PROGRAM_HELP_KEY
-      && programCompact(row.program) === compact
+      && (!row.program || programCompact(row.program) === compact)
     )
   }
   return all.filter((row) => row.screen_key === key)
