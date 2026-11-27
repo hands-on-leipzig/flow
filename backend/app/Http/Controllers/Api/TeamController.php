@@ -6,7 +6,11 @@ use App\Export\Spreadsheet\SpreadsheetResponse;
 use App\Export\Teams\TeamsPeopleSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Enums\FirstProgram;
+use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
+use App\Support\ProgramPresence;
+use App\Support\TeamSlotSchedule;
 use App\Support\ProgramSlugsFilter;
 use App\Support\TeamNumbersFilter;
 use App\Support\SpreadsheetExportVariant;
@@ -192,6 +196,37 @@ class TeamController extends Controller
         app(EventAttentionService::class)->updateEventAttentionStatus($team->event);
 
         return response()->json(['message' => 'Team created successfully', 'team' => $team]);
+    }
+
+    /**
+     * Team activities per plan slot and the transfer time, per program on the plan.
+     * The Reihenfolge page uses it to flag coaches whose teams overlap or are too close.
+     */
+    public function slotSchedule(Event $event)
+    {
+        $plan = Plan::where('event', $event->id)->first();
+        if (! $plan) {
+            return response()->json(['programs' => []]);
+        }
+
+        $params = PlanParameter::load((int) $plan->id);
+        $presence = ProgramPresence::forPlan((int) $plan->id, $params);
+
+        $programs = [];
+        foreach ([FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value] as $programId) {
+            try {
+                $transfer = TeamSlotSchedule::transferMinutes($params, $presence, $programId);
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+            $programs[] = [
+                'first_program' => $programId,
+                'transfer_minutes' => $transfer,
+                'slots' => (object) TeamSlotSchedule::bySlot((int) $plan->id, $programId),
+            ];
+        }
+
+        return response()->json(['programs' => $programs]);
     }
 
     public function updateOrder(Request $request, Event $event)

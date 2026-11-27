@@ -12,6 +12,13 @@ import {
 } from '@/utils/eventPrograms'
 import {formatPlanTeamNo} from '@/utils/planTeamLabel'
 import {formatJuryCell} from '@/utils/teamJury'
+import {
+  describeCoachConflict,
+  findCoachConflict,
+  type CoachConflict,
+  type ProgramSlotSchedule,
+  type TeamPlacement,
+} from '@/utils/coachConflicts'
 
 type TeamRef = {
   key: string
@@ -40,6 +47,11 @@ const props = defineProps<{
   liveTeams?: PlanTeam[]
 }>()
 
+const emit = defineEmits<{
+  /** Focus-program teams whose coach has a clash, by team number. */
+  conflicts: [byTeamNumber: Record<string, {status: 'red' | 'yellow'; title: string}>]
+}>()
+
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const programs = computed(() => eventPrograms(event.value))
@@ -47,6 +59,7 @@ const programs = computed(() => eventPrograms(event.value))
 const loading = ref(false)
 const entries = ref<CoachEntry[]>([])
 const savedSlots = ref<Record<string, Record<string, PlanSlot>>>({})
+const schedules = ref(new Map<number, ProgramSlotSchedule>())
 
 const focusMode = computed(() => !!props.program)
 
@@ -84,16 +97,65 @@ function slotLabel(team: TeamRef): string {
   return lane === '–' ? formatPlanTeamNo(slot.plan) : `${formatPlanTeamNo(slot.plan)} · ${lane}`
 }
 
+function placement(team: TeamRef): TeamPlacement {
+  return {programId: Number(team.program.first_program ?? 0), slot: slotFor(team)?.plan ?? null, name: team.name}
+}
+
+/** Clashes between any two teams of a coach, worst first. */
+function conflictsFor(entry: CoachEntry): CoachConflict[] {
+  const found: CoachConflict[] = []
+  for (let i = 0; i < entry.teams.length; i++) {
+    for (let j = i + 1; j < entry.teams.length; j++) {
+      const conflict = findCoachConflict(placement(entry.teams[i]), placement(entry.teams[j]), schedules.value)
+      if (conflict) found.push(conflict)
+    }
+  }
+  return found.sort((a, b) => (a.status === b.status ? a.gapMinutes - b.gapMinutes : a.status === 'red' ? -1 : 1))
+}
+
+const statusRank = {red: 0, yellow: 1, none: 2}
+
 const visibleEntries = computed(() => {
-  if (!focusMode.value) return entries.value
-  return entries.value.filter((entry) => entry.teams.some((team) => isFocusProgram(team.program)))
+  if (!focusMode.value) return []
+  return entries.value
+    .filter((entry) => entry.teams.some((team) => isFocusProgram(team.program)))
+    .map((entry) => ({...entry, conflicts: conflictsFor(entry)}))
+    .sort((a, b) => statusRank[a.conflicts[0]?.status ?? 'none'] - statusRank[b.conflicts[0]?.status ?? 'none'])
 })
+
+watch(visibleEntries, (list) => {
+  if (!focusMode.value) return
+  const byTeam: Record<string, {status: 'red' | 'yellow'; title: string}> = {}
+  for (const entry of list) {
+    const worst = entry.conflicts[0]
+    if (!worst) continue
+    for (const team of entry.teams) {
+      if (!isFocusProgram(team.program)) continue
+      const number = String(Number(team.number))
+      if (byTeam[number]?.status === 'red') continue
+      byTeam[number] = {status: worst.status, title: `${entry.name}: ${describeCoachConflict(worst)}`}
+    }
+  }
+  emit('conflicts', byTeam)
+})
+
+async function loadSchedules() {
+  try {
+    const {data} = await axios.get(`/events/${event.value?.id}/teams/slot-schedule`)
+    const list: ProgramSlotSchedule[] = Array.isArray(data?.programs) ? data.programs : []
+    schedules.value = new Map(list.map((row) => [Number(row.first_program), row]))
+  } catch {
+    schedules.value = new Map()
+  }
+}
 
 async function loadSavedSlots() {
   if (!event.value?.id || !focusMode.value) {
     savedSlots.value = {}
+    schedules.value = new Map()
     return
   }
+  void loadSchedules()
   const next: Record<string, Record<string, PlanSlot>> = {}
   await Promise.all(programs.value.map(async (prog) => {
     const slug = programSlug(prog.name)
@@ -253,7 +315,23 @@ watch(() => props.program, (next, prev) => {
           :key="entry.name"
           class="teams-multi-team-coaches__item"
       >
-        <span class="teams-multi-team-coaches__coach">{{ entry.name }}</span>
+        <span class="teams-multi-team-coaches__coach">
+          <span
+              v-if="entry.conflicts.length"
+              class="teams-multi-team-coaches__status"
+              :class="`teams-multi-team-coaches__status--${entry.conflicts[0].status}`"
+              aria-hidden="true"
+          />
+          {{ entry.name }}
+        </span>
+        <p
+            v-for="(conflict, index) in entry.conflicts"
+            :key="index"
+            class="teams-multi-team-coaches__conflict"
+            :class="`teams-multi-team-coaches__conflict--${conflict.status}`"
+        >
+          {{ describeCoachConflict(conflict) }}
+        </p>
         <ul class="teams-multi-team-coaches__slots">
           <li
               v-for="team in entry.teams"
@@ -323,6 +401,37 @@ watch(() => props.program, (next, prev) => {
   align-items: center;
   gap: 0.2rem;
   vertical-align: middle;
+}
+
+.teams-multi-team-coaches__status {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.3rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.teams-multi-team-coaches__status--red {
+  background: #ef4444;
+}
+
+.teams-multi-team-coaches__status--yellow {
+  background: #eab308;
+}
+
+.teams-multi-team-coaches__conflict {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.teams-multi-team-coaches__conflict--red {
+  color: #b91c1c;
+}
+
+.teams-multi-team-coaches__conflict--yellow {
+  color: #a16207;
 }
 
 .teams-multi-team-coaches__slots {

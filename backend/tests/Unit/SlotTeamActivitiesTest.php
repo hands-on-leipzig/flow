@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Enums\FirstProgram;
 use App\Http\Controllers\Api\ExtraBlockController;
+use App\Http\Controllers\Api\TeamController;
+use App\Models\Event;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -77,6 +79,49 @@ class SlotTeamActivitiesTest extends TestCase
         $labels = $this->activityLabels(FirstProgram::CHALLENGE->value, 1);
 
         $this->assertSame(['Robot-Game Match'], $labels);
+    }
+
+    public function test_slot_schedule_groups_team_activities_by_slot_with_transfer(): void
+    {
+        $this->insertActivity(
+            id: 1,
+            atd: 15,
+            program: FirstProgram::CHALLENGE->value,
+            name: 'Robot-Game Match',
+            code: 'r_match',
+            teamColumn: 'table_1_team',
+            team: 1,
+            visibilityRole: 3,
+        );
+        DB::table('activity')->where('id', 1)->update(['table_2_team' => 2]);
+        $this->insertActivity(
+            id: 2,
+            atd: 8,
+            program: FirstProgram::CHALLENGE->value,
+            name: 'Jurygespräch',
+            code: 'j_with_team',
+            teamColumn: 'jury_team',
+            team: 1,
+            visibilityRole: 3,
+        );
+        $this->insertActivity(
+            id: 3,
+            atd: 9,
+            program: FirstProgram::CHALLENGE->value,
+            name: 'Nur für Jury',
+            code: 'j_briefing',
+            teamColumn: 'jury_team',
+            team: 2,
+            visibilityRole: 6,
+        );
+
+        $payload = app(TeamController::class)->slotSchedule(Event::findOrFail(1))->getData(true);
+        $challenge = collect($payload['programs'])->firstWhere('first_program', FirstProgram::CHALLENGE->value);
+
+        $this->assertSame(5, $challenge['transfer_minutes']);
+        $this->assertSame(['Robot-Game Match', 'Jurygespräch'], array_column($challenge['slots']['1'], 'label'));
+        $this->assertSame(['Robot-Game Match'], array_column($challenge['slots']['2'], 'label'));
+        $this->assertSame('2026-03-15 10:00:00', $challenge['slots']['2'][0]['start']);
     }
 
     /**

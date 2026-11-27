@@ -17,6 +17,8 @@ const props = defineProps({
   program: {type: String, required: true},
   remoteTeams: {type: Array, default: () => []},
   remoteCapacity: {type: Number, default: 0},
+  /** Coach clashes by team number, from the coach tile. */
+  coachConflicts: {type: Object, default: () => ({})},
 })
 
 const emit = defineEmits(['teams-changed'])
@@ -279,6 +281,7 @@ onMounted(async () => {
         :get-coach-count="getCoachCount"
         :get-member-count="getMemberCount"
         :get-coach-names="getCoachNames"
+        :coach-conflicts="coachConflicts"
         :get-team-border-style="getTeamBorderStyle"
         :get-team-group="getTeamGroup"
         @sort="onSort"

@@ -17,6 +17,7 @@ const props = defineProps({
   getCoachCount: {type: Function, required: true},
   getMemberCount: {type: Function, required: true},
   getCoachNames: {type: Function, required: true},
+  coachConflicts: {type: Object, default: () => ({})},
   getTeamBorderStyle: {type: Function, required: true},
   getTeamGroup: {type: Function, required: true},
 })
@@ -99,6 +100,7 @@ function updateTeamList(value: unknown[]) {
               :coach-count="getCoachCount(team)"
               :member-count="getMemberCount(team)"
               :coach-names="getCoachNames(team)"
+              :coach-conflict="coachConflicts[String(Number(team.team_number_hot))] ?? null"
               @update-noshow="emit('update-noshow', $event)"
           />
         </div>

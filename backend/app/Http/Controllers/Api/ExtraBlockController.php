@@ -13,6 +13,7 @@ use App\Models\SlotBlockTeam;
 use App\Services\EventAttentionService;
 use App\Services\ExtraBlockCleanupService;
 use App\Support\PlanParameter;
+use App\Support\TeamSlotSchedule;
 use App\Support\ProgramPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -371,7 +372,7 @@ class ExtraBlockController extends Controller
 
                 $collision = null;
                 if ($start !== null) {
-                    $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $program);
+                    $transfer = TeamSlotSchedule::transferMinutes($params, $presence, $program);
                     $collision = $this->evaluateTeamCollisionForSlot(
                         $planId,
                         $teamNo,
@@ -490,7 +491,7 @@ class ExtraBlockController extends Controller
             ? $row->start->format('Y-m-d H:i:s')
             : (string) $row->getRawOriginal('start');
 
-        $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $programId);
+        $transfer = TeamSlotSchedule::transferMinutes($params, $presence, $programId);
         $collision = $this->evaluateTeamCollisionForSlot(
             $planId,
             $teamNumberPlan,
@@ -529,7 +530,7 @@ class ExtraBlockController extends Controller
             abort(422, 'Team number out of configured plan range');
         }
 
-        $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $programId);
+        $transfer = TeamSlotSchedule::transferMinutes($params, $presence, $programId);
 
         $assignment = SlotBlockTeam::query()
             ->where('extra_block', $extraBlock)
@@ -556,7 +557,7 @@ class ExtraBlockController extends Controller
                 $q->select(DB::raw(1))
                     ->from('m_visibility as mv')
                     ->whereColumn('mv.activity_type_detail', 'atd.id')
-                    ->where('mv.role', $this->visibilityRoleForProgram($programId));
+                    ->where('mv.role', TeamSlotSchedule::visibilityRole($programId));
             })
             ->where(function ($q) use ($teamNumberPlan) {
                 $q->where('a.jury_team', $teamNumberPlan)
@@ -795,51 +796,6 @@ class ExtraBlockController extends Controller
         ];
     }
 
-    private function transferDurationForProgramOnPlan(
-        PlanParameter $params,
-        ProgramPresence $presence,
-        int $programId
-    ): int {
-        if (in_array($programId, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
-            if (! $presence->exploreOn()) {
-                throw new \InvalidArgumentException('Explore transfer requested for program not on plan');
-            }
-
-            return (int) $params->get('e_duration_transfer');
-        }
-
-        if ($programId === FirstProgram::CHALLENGE->value) {
-            if (! $presence->challengeShapedOn(FirstProgram::CHALLENGE->value)) {
-                throw new \InvalidArgumentException('Challenge transfer requested for program not on plan');
-            }
-
-            return (int) $params->get('c_duration_transfer');
-        }
-
-        if ($programId === FirstProgram::FUTURE_8->value) {
-            if (! $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
-                throw new \InvalidArgumentException('Future 8 transfer requested for program not on plan');
-            }
-
-            return (int) $params->get('f8_duration_transfer');
-        }
-
-        throw new \InvalidArgumentException("Unsupported program for transfer duration: {$programId}");
-    }
-
-    private function visibilityRoleForProgram(int $teamFirstProgram): int
-    {
-        if (in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
-            return 8; // Explore teams
-        }
-
-        if ($teamFirstProgram === FirstProgram::FUTURE_8->value) {
-            return 21; // Future 8+ teams
-        }
-
-        return 3; // Challenge teams
-    }
-
     /**
      * @return array{status: string, min_gap_minutes: ?int}
      */
@@ -867,7 +823,7 @@ class ExtraBlockController extends Controller
                 $q->select(DB::raw(1))
                     ->from('m_visibility as mv')
                     ->whereColumn('mv.activity_type_detail', 'atd.id')
-                    ->where('mv.role', $this->visibilityRoleForProgram($teamFirstProgram));
+                    ->where('mv.role', TeamSlotSchedule::visibilityRole($teamFirstProgram));
             })
             ->where(function ($q) use ($teamNumberPlan) {
                 $q->where('a.jury_team', $teamNumberPlan)

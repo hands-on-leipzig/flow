@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Reihenfolge: one program's teams onto the plan slots, with program chips on top.
+ * Reihenfolge: one program's teams onto the plan slots, with a program switcher on top.
  */
 import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
@@ -13,7 +13,8 @@ import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import PageTabs from '@hands-on/glass/page-tabs'
+import {programLogoSrc} from '@/utils/images'
 import {
   eventPrograms,
   findProgram,
@@ -45,17 +46,19 @@ const loading = ref(true)
 /** Program whose list is shown; switches once its registration data is loaded. */
 const loadedProgram = ref('')
 const planTeams = ref<any[]>([])
+const coachConflicts = ref<Record<string, {status: 'red' | 'yellow'; title: string}>>({})
 /** Bumped when the page comes back, e.g. after a sync on Teamdaten. */
 const listVersion = ref(0)
 
 const attachedProgram = computed(() => findProgram(event.value, program.value))
 
-const programChips = computed(() =>
+const programTabs = computed(() =>
   eventPrograms(event.value).map((row) => ({
-    slug: programSlug(row.name),
-    program: row,
+    id: programSlug(row.name),
     label: programDisplayName(row),
-    countMismatch: !!noticeStore.dots.schedule_counts_by_program?.[programCompact(row.name)],
+    iconSrc: programLogoSrc(row),
+    dot: !!noticeStore.dots.schedule_counts_by_program?.[programCompact(row.name)],
+    dotTitle: 'Anzahl Teams im Ablauf passt nicht zur Anmeldung',
   })),
 )
 
@@ -63,9 +66,9 @@ const activeSlug = computed(() =>
   attachedProgram.value ? programSlug(attachedProgram.value.name) : program.value,
 )
 
-function selectProgram(slug: string) {
-  const target = eventPrograms(event.value).find((row) => programSlug(row.name) === slug)
-  if (target && slug !== activeSlug.value) void router.push(teamPathFor(target))
+function selectProgram(slug: string | number) {
+  const target = eventPrograms(event.value).find((row) => programSlug(row.name) === String(slug))
+  if (target && String(slug) !== activeSlug.value) void router.push(teamPathFor(target))
 }
 
 function isOnProgramTeamsRoute(): boolean {
@@ -163,25 +166,13 @@ watch(
       </div>
     </header>
 
-    <div v-if="programChips.length > 1" class="teams-program__chips" role="group" aria-label="Programm">
-      <button
-          v-for="chip in programChips"
-          :key="chip.slug"
-          type="button"
-          class="glass-filter-chip"
-          :class="{'glass-filter-chip--active': chip.slug === activeSlug}"
-          :aria-pressed="chip.slug === activeSlug"
-          @click="selectProgram(chip.slug)"
-      >
-        <ProgramLogo :program="chip.program" size="chip" decorative class="glass-filter-chip__logo"/>
-        <span class="glass-filter-chip__label">{{ chip.label }}</span>
-        <span
-            v-if="chip.countMismatch"
-            class="glass-filter-chip__dot"
-            title="Anzahl Teams im Ablauf passt nicht zur Anmeldung"
-        />
-      </button>
-    </div>
+    <PageTabs
+        v-if="programTabs.length > 1"
+        aria-label="Programm"
+        :tabs="programTabs"
+        :model-value="activeSlug"
+        @update:model-value="selectProgram"
+    />
 
     <NoticePane/>
 
@@ -202,13 +193,18 @@ watch(
               :program="loadedProgram"
               :remote-teams="remoteTeams"
               :remote-capacity="remoteCapacity"
+              :coach-conflicts="coachConflicts"
               @teams-changed="planTeams = $event"
           />
         </section>
       </div>
 
       <aside class="vol-staffing-pane vol-staffing-pane--side">
-        <TeamsMultiTeamCoaches :program="loadedProgram" :live-teams="planTeams"/>
+        <TeamsMultiTeamCoaches
+            :program="loadedProgram"
+            :live-teams="planTeams"
+            @conflicts="coachConflicts = $event"
+        />
         <TeamsRegistrationStats/>
       </aside>
     </div>
@@ -216,13 +212,6 @@ watch(
 </template>
 
 <style scoped>
-.teams-program__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
 .vol-staffing-body--loading {
   display: flex;
   align-items: center;
