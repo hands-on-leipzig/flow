@@ -55,7 +55,7 @@ const today = new Date().toISOString().slice(0, 10)
 
 const atMax = computed(() => maxPlayers.value !== null && players.value.length >= maxPlayers.value)
 const aligned = computed(() => props.columns != null)
-const span = computed(() => 10 + (props.columns?.length ?? 0))
+const span = computed(() => 6 + (props.columns?.length ?? 0))
 
 const outOfRangeCount = computed(() =>
   players.value.filter((player) => playerAgeOutOfRange(player.birthday, rule.value) !== null).length,
@@ -206,15 +206,11 @@ watch(
         </td>
       </tr>
       <tr v-if="players.length" class="team-players-editor__subhead">
-        <td class="vol-table__sticky vol-table__sticky--drag"></td>
-        <td class="vol-table__sticky vol-table__sticky--seq"></td>
         <td class="vol-table__sticky vol-table__sticky--identity">Vorname</td>
         <td>Nachname</td>
         <td>Geschlecht</td>
         <td>Geburtsdatum</td>
         <td>{{ rule ? 'Alter' : '' }}</td>
-        <td></td>
-        <td></td>
         <td v-for="column in columns" :key="column.key">
           {{ column.kind === 'photo' || column.kind === 'meal' ? column.label : '' }}
         </td>
@@ -229,8 +225,6 @@ watch(
           class="team-players-editor__row"
           :class="{'team-players-editor__row--warning': isOutOfRange(player)}"
       >
-        <td class="vol-table__sticky vol-table__sticky--drag"></td>
-        <td class="vol-table__sticky vol-table__sticky--seq"></td>
         <td class="vol-table__sticky vol-table__sticky--identity">
           <input
               type="text"
@@ -281,8 +275,6 @@ watch(
             {{ ageLabel(player) }}
           </template>
         </td>
-        <td></td>
-        <td></td>
         <td v-for="column in columns" :key="`${index}-${column.key}`">
           <select
               v-if="column.kind === 'photo'"

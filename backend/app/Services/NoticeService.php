@@ -175,6 +175,8 @@ class NoticeService
         $messages = [];
         $byProgram = $conditions['teams_by_program'] ?? [];
         $meta = $conditions['teams_meta'] ?? [];
+        // Only the per-program screen has a program in its path; any other screen uses its own route.
+        $perProgramScreen = $row->helpScreen?->route_path === '/plan/teams/:program';
 
         foreach ($byProgram as $compact => $on) {
             if (! $on) {
@@ -184,7 +186,7 @@ class NoticeService
             $messages[] = $this->message($row, [
                 'id' => $row->id.':'.$compact,
                 'body' => str_replace('{program}', (string) $info['display'], (string) $row->body),
-                'jump_path' => '/plan/teams/'.$info['slug'],
+                'jump_path' => $perProgramScreen ? '/plan/teams/'.$info['slug'] : null,
                 'hideable' => false,
                 'program' => $info['slug'],
                 'scope' => null,

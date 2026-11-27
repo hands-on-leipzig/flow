@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
-import {drahtIdFor, eventPrograms, programSlug, type EventProgramRef} from '@/utils/eventPrograms'
+import {
+  drahtIdFor,
+  eventPrograms,
+  programMatchesSlug,
+  programSlug,
+  type EventProgramRef,
+} from '@/utils/eventPrograms'
+import {formatPlanTeamNo} from '@/utils/planTeamLabel'
+import {formatJuryCell} from '@/utils/teamJury'
 
 type TeamRef = {
   key: string
   name: string
+  number: string
   program: EventProgramRef
 }
 
@@ -16,12 +25,89 @@ type CoachEntry = {
   teams: TeamRef[]
 }
 
+type PlanTeam = {
+  team_number_hot?: number | string | null
+  team_number_plan?: number | null
+  jury_lane?: number | null
+}
+
+type PlanSlot = {plan: number | null, lane: number | null}
+
+const props = defineProps<{
+  /** Zuordnung: only coaches with a team in this program, each team with its plan slot. */
+  program?: string
+  /** Current order of that program's teams while sorting. */
+  liveTeams?: PlanTeam[]
+}>()
+
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const programs = computed(() => eventPrograms(event.value))
 
 const loading = ref(false)
 const entries = ref<CoachEntry[]>([])
+const savedSlots = ref<Record<string, Record<string, PlanSlot>>>({})
+
+const focusMode = computed(() => !!props.program)
+
+function isFocusProgram(prog: EventProgramRef): boolean {
+  return !!props.program && programMatchesSlug(prog.name, props.program)
+}
+
+function slotMap(teams: PlanTeam[], byIndex: boolean): Record<string, PlanSlot> {
+  const map: Record<string, PlanSlot> = {}
+  teams.forEach((team, index) => {
+    const number = team.team_number_hot == null ? '' : String(Number(team.team_number_hot))
+    if (!number) return
+    map[number] = {
+      plan: byIndex ? index + 1 : (team.team_number_plan ?? null),
+      lane: team.jury_lane ?? null,
+    }
+  })
+  return map
+}
+
+const liveSlots = computed(() => slotMap(props.liveTeams ?? [], true))
+
+function slotFor(team: TeamRef): PlanSlot | null {
+  const number = String(Number(team.number))
+  if (isFocusProgram(team.program) && props.liveTeams?.length) {
+    return liveSlots.value[number] ?? null
+  }
+  return savedSlots.value[programSlug(team.program.name)]?.[number] ?? null
+}
+
+function slotLabel(team: TeamRef): string {
+  const slot = slotFor(team)
+  if (!slot?.plan) return '–'
+  const lane = formatJuryCell(String(team.program.name ?? ''), slot.lane)
+  return lane === '–' ? formatPlanTeamNo(slot.plan) : `${formatPlanTeamNo(slot.plan)} · ${lane}`
+}
+
+const visibleEntries = computed(() => {
+  if (!focusMode.value) return entries.value
+  return entries.value.filter((entry) => entry.teams.some((team) => isFocusProgram(team.program)))
+})
+
+async function loadSavedSlots() {
+  if (!event.value?.id || !focusMode.value) {
+    savedSlots.value = {}
+    return
+  }
+  const next: Record<string, Record<string, PlanSlot>> = {}
+  await Promise.all(programs.value.map(async (prog) => {
+    const slug = programSlug(prog.name)
+    try {
+      const {data} = await axios.get(`/events/${event.value?.id}/teams`, {
+        params: {program: slug, sort: 'plan_order'},
+      })
+      next[slug] = slotMap(Array.isArray(data) ? data : (data?.teams ?? []), false)
+    } catch {
+      next[slug] = {}
+    }
+  }))
+  savedSlots.value = next
+}
 
 function coachIdentity(coach: unknown): {key: string; name: string} | null {
   if (typeof coach === 'string') {
@@ -48,6 +134,7 @@ function teamRef(prog: EventProgramRef, teamData: Record<string, unknown>, teamK
   return {
     key: `${programSlug(prog.name)}:${name.toLowerCase()}`,
     name,
+    number: String(teamKey).trim(),
     program: prog,
   }
 }
@@ -123,14 +210,29 @@ async function loadMultiTeamCoaches() {
   }
 }
 
-const showTile = computed(() => !loading.value && entries.value.length > 0)
+const showTile = computed(() => !loading.value && (focusMode.value || entries.value.length > 0))
+
+let activatedBefore = false
 
 onMounted(() => {
   void loadMultiTeamCoaches()
+  void loadSavedSlots()
+})
+
+// Kept alive per program: another program's order may have changed meanwhile.
+onActivated(() => {
+  if (activatedBefore) void loadSavedSlots()
+  activatedBefore = true
 })
 
 watch(() => event.value?.id, () => {
   void loadMultiTeamCoaches()
+  void loadSavedSlots()
+})
+
+// One Zuordnung page for all programs: the previous program's order may have changed.
+watch(() => props.program, (next, prev) => {
+  if (next && prev && next !== prev) void loadSavedSlots()
 })
 </script>
 
@@ -141,7 +243,33 @@ watch(() => event.value?.id, () => {
   >
     <h2 class="vol-sidebar-heading">Coach:innen mit mehr als einem Team</h2>
 
-    <div class="teams-multi-team-coaches__scroll">
+    <p v-if="focusMode && !visibleEntries.length" class="vol-sidebar-muted">
+      Kein Team in diesem Programm teilt sich Coach:innen mit einem anderen Team.
+    </p>
+
+    <ul v-else-if="focusMode" class="teams-multi-team-coaches__list">
+      <li
+          v-for="entry in visibleEntries"
+          :key="entry.name"
+          class="teams-multi-team-coaches__item"
+      >
+        <span class="teams-multi-team-coaches__coach">{{ entry.name }}</span>
+        <ul class="teams-multi-team-coaches__slots">
+          <li
+              v-for="team in entry.teams"
+              :key="team.key"
+              class="teams-multi-team-coaches__slot"
+              :class="{'teams-multi-team-coaches__slot--focus': isFocusProgram(team.program)}"
+          >
+            <ProgramLogo :program="team.program" size="chip" decorative/>
+            <span class="teams-multi-team-coaches__slot-no">{{ slotLabel(team) }}</span>
+            <span class="teams-multi-team-coaches__slot-name">{{ team.name }}</span>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <div v-else class="teams-multi-team-coaches__scroll">
       <ul class="teams-multi-team-coaches__list">
         <li
             v-for="entry in entries"
@@ -195,5 +323,37 @@ watch(() => event.value?.id, () => {
   align-items: center;
   gap: 0.2rem;
   vertical-align: middle;
+}
+
+.teams-multi-team-coaches__slots {
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teams-multi-team-coaches__slot {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--color-text-muted);
+}
+
+.teams-multi-team-coaches__slot--focus {
+  color: var(--color-text);
+}
+
+.teams-multi-team-coaches__slot-no {
+  flex: 0 0 auto;
+  min-width: 4.25rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.teams-multi-team-coaches__slot-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

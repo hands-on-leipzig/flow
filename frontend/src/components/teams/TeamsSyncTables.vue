@@ -2,13 +2,7 @@
 import {computed} from 'vue'
 import draggable from 'vuedraggable'
 import TeamRow from '@/components/teams/TeamRow.vue'
-import {
-  hasSyncWork,
-  mergeTeams,
-  syncButtonLabel,
-  visibleDrahtTeams,
-  type TeamSyncEntry,
-} from '@/utils/teamSync'
+import {visibleDrahtTeams} from '@/utils/teamSync'
 import { formatPlanTeamNo, MISSING_TEAM_NAME } from '@/utils/planTeamLabel'
 
 const props = defineProps({
@@ -20,7 +14,6 @@ const props = defineProps({
   hasTwoExploreGroups: {type: Boolean, default: false},
   e1Teams: {type: Number, default: 0},
   showJury: {type: Boolean, default: false},
-  syncing: {type: Boolean, default: false},
   getCoachCount: {type: Function, required: true},
   getMemberCount: {type: Function, required: true},
   getCoachNames: {type: Function, required: true},
@@ -38,40 +31,10 @@ const emit = defineEmits([
   'update-noshow',
   'toggle',
   'copy',
-  'sync',
   'players-saved',
 ])
 
 const visibleRemote = computed(() => visibleDrahtTeams(props.remoteTeams as Record<string, unknown>[]))
-
-const merged = computed<TeamSyncEntry[]>(() =>
-  mergeTeams(props.teamList as Record<string, unknown>[], visibleRemote.value),
-)
-
-const upperRows = computed(() =>
-  merged.value.filter(
-    (row) =>
-      row.draht
-      && (row.status === 'new' || row.status === 'conflict'),
-  ),
-)
-
-function upperRowLabel(row: TeamSyncEntry): string {
-  return row.status === 'conflict' ? 'Umbenannt' : 'Neu'
-}
-
-const missingLocalIds = computed(() => {
-  const ids = new Set<number>()
-  for (const row of merged.value) {
-    if (row.status === 'missing' && row.local?.id != null) {
-      ids.add(Number(row.local.id))
-    }
-  }
-  return ids
-})
-
-const syncLabel = computed(() => syncButtonLabel(merged.value))
-const showSyncButton = computed(() => hasSyncWork(merged.value))
 
 const placeholderRows = computed(() => {
   const capacity = props.planCapacity
@@ -107,41 +70,6 @@ function updateTeamList(value: unknown[]) {
 
 <template>
   <div class="teams-sync-tables" :class="{'teams-sync-tables--jury': showJury}">
-    <template v-if="showSyncButton">
-      <h3 class="teams-sync-tables__heading">Änderungen der Anmeldung</h3>
-
-      <ul v-if="upperRows.length" class="teams-sync-tables__pending list-none p-0 m-0 mb-2">
-        <TeamRow
-            v-for="(row, idx) in upperRows"
-            :key="`upper-${row.status}-${row.draht?.id ?? row.number ?? idx}`"
-            variant="pending"
-            :team="row.draht"
-            :index="idx"
-            :program="program"
-            :show-jury="showJury"
-            :sync-change-label="upperRowLabel(row)"
-            :coach-count="getCoachCount(row.draht)"
-            :member-count="getMemberCount(row.draht)"
-            :coach-names="getCoachNames(row.draht)"
-            :format-birthday="formatBirthday"
-        />
-      </ul>
-
-      <div class="teams-sync-tables__sync-wrap">
-        <button
-            type="button"
-            class="teams-sync-tables__sync-btn glass-btn-accent"
-            :disabled="syncing"
-            @click="emit('sync')"
-        >
-          <i class="bi bi-arrow-repeat teams-sync-tables__sync-icon" aria-hidden="true"/>
-          <span>{{ syncLabel }}</span>
-        </button>
-      </div>
-
-      <h3 class="teams-sync-tables__heading teams-sync-tables__heading--flow">Daten in FLOW</h3>
-    </template>
-
     <draggable
         :model-value="teamList"
         animation="150"
@@ -171,7 +99,6 @@ function updateTeamList(value: unknown[]) {
               variant="main"
               :plan-capacity="planCapacity"
               :teams-beyond-capacity="teamsBeyondCapacity"
-              :missing-in-draht="missingLocalIds.has(Number(team.id))"
               :show-jury="showJury"
               :border-style="getTeamBorderStyle(team)"
               :has-morning-border="getTeamGroup(team) === 'morning'"
@@ -221,41 +148,6 @@ function updateTeamList(value: unknown[]) {
 </template>
 
 <style scoped>
-.teams-sync-tables__heading {
-  margin: 0 0 0.5rem;
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: var(--color-text-muted);
-}
-
-.teams-sync-tables__heading--flow {
-  margin-top: 0.25rem;
-}
-
-.teams-sync-tables__sync-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 0.75rem 0 1rem;
-}
-
-.teams-sync-tables__sync-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  width: 100%;
-  max-width: 28rem;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-.teams-sync-tables__sync-icon {
-  font-size: 1.15rem;
-  flex-shrink: 0;
-}
-
 .teams-sync-tables :deep(.team-row__grid) {
   display: grid;
   grid-template-columns:

@@ -21,11 +21,6 @@ import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
 import {visibleDrahtTeams, mergeTeams, hasSyncWork, syncButtonLabel} from '@/utils/teamSync'
 import {
-  applyJuryLanesForPlanSlots,
-  buildJuryLaneByPlanSlot,
-  formatJuryCell,
-} from '@/utils/teamJury'
-import {
   isTeamDataUnconfirmed,
   isTeamParticipantListIncomplete,
   isTeamPhotoConsentUnset,
@@ -63,8 +58,9 @@ const deadlineDraft = ref('')
 const deadlineSaving = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
-const sortKey = ref<'plan' | 'team_number_hot' | 'name' | 'organization'>('plan')
-const planById = ref<Record<number, {plan: number | null, noshow: boolean, jury: string, juryLane: number | null}>>({})
+type SortKey = 'program' | 'team_number_hot' | 'name' | 'organization'
+
+const sortKey = ref<SortKey>('name')
 const remoteByProgram = ref<Record<number, Record<string, unknown>[]>>({})
 const remoteTeamsLoaded = ref(false)
 const syncingProgramId = ref<number | null>(null)
@@ -120,15 +116,11 @@ const filteredTeams = computed(() => {
   }
 
   let rows = [...teams.value].map((row) => {
-    const plan = planById.value[row.id]
     const remote = remoteTeamFor(row)
     return {
       ...row,
       organization: textOrNull(row.organization) ?? textOrNull(remote?.organization) ?? null,
       location: textOrNull(row.location) ?? textOrNull(remote?.location) ?? null,
-      plan_number: plan?.plan ?? row.team_number_plan,
-      noshow: plan?.noshow ?? false,
-      jury_label: plan?.jury ?? '–',
     }
   })
   rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
@@ -165,9 +157,10 @@ const filteredTeams = computed(() => {
   const dir = sortDir.value === 'asc' ? 1 : -1
   const key = sortKey.value
   rows.sort((a, b) => {
-    const programDelta = (programOrder.get(Number(a.first_program)) ?? 99) - (programOrder.get(Number(b.first_program)) ?? 99)
-    if (programDelta !== 0) return programDelta
-    if (key === 'team_number_hot') {
+    if (key === 'program') {
+      const programDelta = (programOrder.get(Number(a.first_program)) ?? 99) - (programOrder.get(Number(b.first_program)) ?? 99)
+      if (programDelta !== 0) return programDelta * dir
+    } else if (key === 'team_number_hot') {
       const an = a.team_number_hot
       const bn = b.team_number_hot
       if (an == null && bn == null) {
@@ -179,10 +172,6 @@ const filteredTeams = computed(() => {
       } else if (an !== bn) {
         return (an - bn) * dir
       }
-    } else if (key === 'plan') {
-      const an = a.plan_number ?? Number.MAX_SAFE_INTEGER
-      const bn = b.plan_number ?? Number.MAX_SAFE_INTEGER
-      if (an !== bn) return (an - bn) * dir
     } else if (key === 'organization') {
       const av = (a.organization ?? '').toLocaleLowerCase('de')
       const bv = (b.organization ?? '').toLocaleLowerCase('de')
@@ -240,18 +229,6 @@ function toggleProgramFilter(programId: number) {
   activeProgramFilters.value = next
 }
 
-const rowFilterActive = computed(() =>
-  nameFilter.value.trim() !== ''
-  || showOnlyPhotoUnset.value
-  || showOnlyIncomplete.value
-  || showOnlyParticipantListIncomplete.value
-  || showOnlyUnconfirmed.value
-)
-
-const canReorder = computed(() =>
-  sortKey.value === 'plan' && sortDir.value === 'asc' && !rowFilterActive.value
-)
-
 const syncByProgram = computed(() => {
   const map: Record<number, {
     label: string
@@ -260,8 +237,9 @@ const syncByProgram = computed(() => {
     buttonLabel: string
   }> = {}
   if (!remoteTeamsLoaded.value) return map
-  for (const program of programFilters.value) {
+  for (const program of eventPrograms(eventStore.selectedEvent)) {
     const programId = Number(program.first_program)
+    if (!programId) continue
     const local = teams.value.filter((row) => row.first_program === programId)
     const remote = remoteByProgram.value[programId] ?? []
     const merged = mergeTeams(local as unknown as Record<string, unknown>[], remote)
@@ -293,7 +271,40 @@ const syncByProgram = computed(() => {
   return map
 })
 
-function toggleSort(key: 'plan' | 'team_number_hot' | 'name' | 'organization') {
+const syncBubbles = computed(() =>
+  Object.entries(syncByProgram.value).map(([id, sync]) => ({
+    programId: Number(id),
+    label: sync.label,
+    action: sync.buttonLabel.replace(/^Abgleichen:\s*/, ''),
+    title: sync.pending.map((item) => `${item.label}: ${item.number} ${item.name}`).join(', ') || sync.buttonLabel,
+  })),
+)
+
+const missingTeamIds = computed(() =>
+  new Set(Object.values(syncByProgram.value).flatMap((sync) => sync.missingIds)),
+)
+
+async function onSyncProgram(programId: number) {
+  if (!eventId.value || syncingProgramId.value != null) return
+  const program = eventPrograms(eventStore.selectedEvent).find((row) => Number(row.first_program) === programId)
+  if (!program) return
+  syncingProgramId.value = programId
+  try {
+    await axios.post(`/events/${eventId.value}/teams/sync`, {
+      program: programSlug(program.name),
+    })
+    await load()
+    await eventStore.updateTeamDiscrepancyStatus()
+    await eventStore.refreshReadiness(eventId.value)
+    showGlassToast('Abgleich abgeschlossen', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Abgleich fehlgeschlagen'), 'error')
+  } finally {
+    syncingProgramId.value = null
+  }
+}
+
+function toggleSort(key: SortKey) {
   if (sortKey.value === key) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
@@ -343,7 +354,7 @@ async function load() {
       setMealOptions(data.meal_options)
     }
     syncProgramFilters()
-    await Promise.all([attachPlan(), loadRemoteTeams()])
+    await loadRemoteTeams()
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
@@ -353,31 +364,6 @@ async function load() {
 
 const answersDeadline = ref('')
 const answersDeadlineDraft = ref('')
-
-async function attachPlan() {
-  if (!eventId.value) return
-  const next: Record<number, {plan: number | null, noshow: boolean, jury: string, juryLane: number | null}> = {}
-  await Promise.all(programFilters.value.map(async (program) => {
-    try {
-      const {data} = await axios.get(`/events/${eventId.value}/teams`, {
-        params: {program: programSlug(program.name), sort: 'plan_order'},
-      })
-      const list = Array.isArray(data) ? data : (data?.teams ?? [])
-      for (const team of list) {
-        const lane = team.jury_lane == null ? null : Number(team.jury_lane)
-        next[Number(team.id)] = {
-          plan: team.team_number_plan ?? null,
-          noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1',
-          jury: formatJuryCell(String(program.name ?? ''), lane),
-          juryLane: lane != null && Number.isFinite(lane) ? lane : null,
-        }
-      }
-    } catch {
-      // A program without a plan still shows its team data.
-    }
-  }))
-  planById.value = next
-}
 
 function teamListFromDraht(teams: unknown): unknown[] {
   if (Array.isArray(teams)) return teams
@@ -395,8 +381,9 @@ async function loadRemoteTeams() {
     const {data} = await axios.get(`/events/${eventId.value}/draht-data`)
     const programs = Array.isArray(data?.programs) ? data.programs : []
     const next: Record<number, Record<string, unknown>[]> = {}
-    for (const program of programFilters.value) {
+    for (const program of eventPrograms(eventStore.selectedEvent)) {
       const programId = Number(program.first_program)
+      if (!programId) continue
       const match = programs.find((row: {first_program?: number, name?: string}) =>
         Number(row.first_program) === programId
         || String(row.name || '').toUpperCase() === String(program.name || '').toUpperCase(),
@@ -416,94 +403,6 @@ async function loadRemoteTeams() {
   } catch {
     remoteByProgram.value = {}
     remoteTeamsLoaded.value = false
-  }
-}
-
-async function onReorder(programId: number, orderedIds: number[]) {
-  if (!eventId.value || orderedIds.length === 0) return
-  const program = programFilters.value.find((row) => Number(row.first_program) === programId)
-  if (!program) return
-  const current = teams.value
-    .filter((row) => row.first_program === programId)
-    .map((row) => ({
-      id: row.id,
-      team_number_plan: planById.value[row.id]?.plan ?? null,
-      jury_lane: planById.value[row.id]?.juryLane ?? null,
-    }))
-  const slotMap = buildJuryLaneByPlanSlot(current)
-  const byId = new Map(current.map((row) => [row.id, row]))
-  const ordered = orderedIds
-    .map((id, index) => {
-      const row = byId.get(id)
-      if (!row) return null
-      return {...row, team_number_plan: index + 1}
-    })
-    .filter((row): row is NonNullable<typeof row> => row != null)
-  const withLanes = applyJuryLanesForPlanSlots(ordered, slotMap)
-  const next = {...planById.value}
-  for (const row of withLanes) {
-    const previous = next[row.id]
-    next[row.id] = {
-      plan: row.team_number_plan,
-      noshow: previous?.noshow ?? false,
-      jury: formatJuryCell(String(program.name ?? ''), row.jury_lane),
-      juryLane: row.jury_lane ?? null,
-    }
-  }
-  planById.value = next
-  try {
-    await axios.post(`/events/${eventId.value}/teams/update-order`, {
-      program: programSlug(program.name),
-      order: withLanes.map((row) => ({
-        team_id: row.id,
-        order: row.team_number_plan,
-      })),
-    })
-    await eventStore.updateTeamDiscrepancyStatus()
-  } catch (e: unknown) {
-    showGlassToast(apiError(e, 'Reihenfolge konnte nicht gespeichert werden'), 'error')
-    await attachPlan()
-  }
-}
-
-async function onSyncProgram(programId: number) {
-  if (!eventId.value || syncingProgramId.value != null) return
-  const program = programFilters.value.find((row) => Number(row.first_program) === programId)
-  if (!program) return
-  syncingProgramId.value = programId
-  try {
-    await axios.post(`/events/${eventId.value}/teams/sync`, {
-      program: programSlug(program.name),
-    })
-    await load()
-    await eventStore.updateTeamDiscrepancyStatus()
-    await eventStore.refreshReadiness(eventId.value)
-    showGlassToast('Abgleich abgeschlossen', 'success')
-  } catch (e: unknown) {
-    showGlassToast(apiError(e, 'Abgleich fehlgeschlagen'), 'error')
-  } finally {
-    syncingProgramId.value = null
-  }
-}
-async function onNoshow(team: TeamDataRow, noshow: boolean) {
-  if (!eventId.value) return
-  planById.value = {
-    ...planById.value,
-    [team.id]: {
-      ...(planById.value[team.id] ?? {
-        plan: team.plan_number ?? null,
-        jury: team.jury_label ?? '–',
-        juryLane: null,
-        noshow,
-      }),
-      noshow,
-    },
-  }
-  try {
-    await axios.put(`/events/${eventId.value}/teams`, {id: team.id, noshow: noshow ? 1 : 0})
-  } catch (e: unknown) {
-    showGlassToast(apiError(e, 'No-show konnte nicht gespeichert werden'), 'error')
-    await attachPlan()
   }
 }
 
@@ -575,7 +474,7 @@ onActivated(() => {
     <header class="vol-page__header">
       <div>
         <div class="vol-page__title-row">
-          <h1 class="vol-page__title">Teams</h1>
+          <h1 class="vol-page__title">Teamdaten</h1>
           <ScreenHelpButton/>
         </div>
         <p class="vol-page__sub">Bitte prüfe, ob die Teamdaten vollständig sind.</p>
@@ -675,6 +574,23 @@ onActivated(() => {
     </div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
+      <div v-if="syncBubbles.length && !loading" class="team-data-sync-bubbles">
+        <span class="team-data-sync-bubbles__title">Änderungen aus der Anmeldung</span>
+        <button
+            v-for="bubble in syncBubbles"
+            :key="bubble.programId"
+            type="button"
+            class="team-data-sync-bubble no-touch-min"
+            :title="bubble.title"
+            :disabled="syncingProgramId != null"
+            @click="onSyncProgram(bubble.programId)"
+        >
+          <i class="bi bi-arrow-repeat" aria-hidden="true"/>
+          <span>{{ bubble.label }}</span>
+          <span>{{ syncingProgramId === bubble.programId ? 'Abgleichen…' : bubble.action }}</span>
+        </button>
+      </div>
+
       <VolunteerStaffingFilterBar
           v-if="teams.length && !loading"
       >
@@ -778,15 +694,11 @@ onActivated(() => {
           :columns="columns"
           :sort-key="sortKey"
           :sort-dir="sortDir"
-          :can-reorder="canReorder"
-          :sync-by-program="syncByProgram"
-          :syncing-program-id="syncingProgramId"
+          :show-program="programFilters.length > 1"
+          :missing-ids="missingTeamIds"
           @toggle-sort="toggleSort"
           @open-count="openCountPopover"
           @updated="onTeamUpdated"
-          @noshow="onNoshow"
-          @reorder="onReorder"
-          @sync="onSyncProgram"
       />
     </section>
 
@@ -825,6 +737,52 @@ onActivated(() => {
 </template>
 
 <style scoped>
+.team-data-sync-bubbles {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #e07a2f;
+  border-radius: 0.85rem;
+  background: #fff1e4;
+}
+
+.team-data-sync-bubbles__title {
+  margin-right: 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 750;
+  color: #9a3412;
+}
+
+.team-data-sync-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  border: none;
+  border-radius: 999px;
+  background: #e86a1a;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(122, 45, 8, 0.25);
+}
+
+.team-data-sync-bubble:hover:not(:disabled) {
+  background: #cf5510;
+}
+
+.team-data-sync-bubble:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
 .teams-overview {
   display: flex;
   align-items: stretch;

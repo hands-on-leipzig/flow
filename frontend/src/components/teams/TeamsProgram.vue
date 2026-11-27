@@ -1,22 +1,26 @@
 <script setup lang="ts">
 /**
- * One program's teams page — Zuordnung-style header + dual-scroll panes.
+ * Zuordnung: one program's teams onto the plan slots, with a program switcher on top.
  */
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import axios from 'axios'
+import PageTabs from '@hands-on/glass/page-tabs'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import TeamList from '@/components/molecules/TeamList.vue'
 import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
 import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
-import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
-import {findProgram, firstTeamsPath} from '@/utils/eventPrograms'
-import {flowFilename} from '@/utils/flowFilename'
-import {showGlassToast} from '@/composables/useGlassToast'
+import {
+  eventPrograms,
+  findProgram,
+  firstTeamsPath,
+  programDisplayName,
+  programSlug,
+  teamPathFor,
+} from '@/utils/eventPrograms'
 
 defineOptions({name: 'TeamsProgram'})
 
@@ -25,16 +29,39 @@ const router = useRouter()
 const eventStore = useEventStore()
 const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
-const eventId = computed(() => event.value?.id)
 
-const program = computed(() => String(route.params.program || ''))
+// Kept alive across Teamdaten: only follow the param while on a program route.
+const program = ref(String(route.params.program || ''))
+watch(() => route.params.program, (next) => {
+  if (route.name === 'teams-program' && next) program.value = String(next)
+})
 
 const remoteTeams = ref<any[]>([])
 const remoteCapacity = ref(0)
 const loading = ref(true)
-const exportBusy = ref(false)
+/** Program whose list is shown; switches once its registration data is loaded. */
+const loadedProgram = ref('')
+const planTeams = ref<any[]>([])
+/** Bumped when the page comes back, e.g. after a sync on Teamdaten. */
+const listVersion = ref(0)
 
 const attachedProgram = computed(() => findProgram(event.value, program.value))
+
+const programTabs = computed(() =>
+  eventPrograms(event.value).map((row) => ({
+    id: programSlug(row.name),
+    label: programDisplayName(row),
+  })),
+)
+
+const activeTab = computed(() =>
+  attachedProgram.value ? programSlug(attachedProgram.value.name) : program.value,
+)
+
+function selectProgram(slug: string | number) {
+  const target = eventPrograms(event.value).find((row) => programSlug(row.name) === String(slug))
+  if (target && String(slug) !== activeTab.value) void router.push(teamPathFor(target))
+}
 
 function isOnProgramTeamsRoute(): boolean {
   return route.name === 'teams-program'
@@ -62,11 +89,13 @@ async function loadRemoteTeams() {
     if (!event.value?.id) {
       remoteTeams.value = []
       remoteCapacity.value = 0
+      loadedProgram.value = ''
       return
     }
     if (!current) {
       remoteTeams.value = []
       remoteCapacity.value = 0
+      loadedProgram.value = ''
       const next = firstTeamsPath(event.value)
       // Never steal /plan/teams/data (Teamdaten) or other non-program teams routes.
       if (isOnProgramTeamsRoute() && route.path !== next) {
@@ -82,34 +111,24 @@ async function loadRemoteTeams() {
     )
     remoteTeams.value = normalizeTeams(match?.teams)
     remoteCapacity.value = Number(match?.capacity || 0)
+    if (loadedProgram.value !== program.value) planTeams.value = []
+    loadedProgram.value = program.value
   } finally {
     loading.value = false
   }
 }
 
-async function downloadExcel() {
-  if (!eventId.value || exportBusy.value) return
-  exportBusy.value = true
-  try {
-    const response = await axios.get(`/events/${eventId.value}/teams/people/export`, {
-      responseType: 'blob',
-    })
-    const url = window.URL.createObjectURL(response.data)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = response.headers['x-filename']
-      || flowFilename('Teams', 'xlsx', event.value?.date)
-    link.click()
-    window.URL.revokeObjectURL(url)
-  } catch {
-    showGlassToast('Export fehlgeschlagen', 'error')
-  } finally {
-    exportBusy.value = false
-  }
-}
-
 onMounted(() => {
   void loadRemoteTeams()
+})
+
+let activatedBefore = false
+onActivated(() => {
+  if (activatedBefore) {
+    listVersion.value += 1
+    void loadRemoteTeams()
+  }
+  activatedBefore = true
 })
 
 watch(program, () => {
@@ -119,7 +138,10 @@ watch(program, () => {
 watch(
   () => event.value?.id,
   (id, prev) => {
-    if (id && id !== prev) void loadRemoteTeams()
+    if (id && id !== prev) {
+      loadedProgram.value = ''
+      void loadRemoteTeams()
+    }
   }
 )
 </script>
@@ -129,30 +151,25 @@ watch(
     <header class="vol-page__header">
       <div>
         <div class="vol-page__title-row">
-          <h1 class="vol-page__title">Details pro Team</h1>
+          <h1 class="vol-page__title">Zuordnung</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Zuordnen der Teams auf die Nummern im Ablauf. Anschauen der Details aus der Anmeldung</p>
-      </div>
-      <div class="vol-page__actions">
-        <button
-            type="button"
-            class="glass-btn-secondary vol-upload-trigger"
-            :class="{'vol-upload-trigger--active': exportBusy}"
-            :disabled="!eventId || exportBusy"
-            @click="downloadExcel"
-        >
-          <i class="bi bi-download" aria-hidden="true"/>
-          {{ exportBusy ? 'Export…' : 'Download' }}
-        </button>
-        <TeamsEmailOutreach :current-program="program"/>
+        <p class="vol-page__sub">Bitte ordne die Teams per Drag-and-drop den Nummern im Ablauf zu.</p>
       </div>
     </header>
+
+    <PageTabs
+        v-if="programTabs.length > 1"
+        aria-label="Programm"
+        :tabs="programTabs"
+        :model-value="activeTab"
+        @update:model-value="selectProgram"
+    />
 
     <NoticePane/>
 
     <div
-        v-if="loading"
+        v-if="loading && !loadedProgram"
         class="vol-staffing-body vol-staffing-body--loading"
     >
       <div class="teams-program__loading">
@@ -160,21 +177,22 @@ watch(
       </div>
     </div>
 
-    <div v-else-if="attachedProgram" class="vol-staffing-body">
+    <div v-else-if="loadedProgram" class="vol-staffing-body">
       <div class="vol-staffing-pane vol-staffing-pane--main">
         <section class="glass-card liquid-surface-inner vol-tile">
           <TeamList
-              :key="program"
-              :program="program"
+              :key="`${loadedProgram}-${listVersion}`"
+              :program="loadedProgram"
               :remote-teams="remoteTeams"
               :remote-capacity="remoteCapacity"
+              @teams-changed="planTeams = $event"
           />
         </section>
       </div>
 
       <aside class="vol-staffing-pane vol-staffing-pane--side">
+        <TeamsMultiTeamCoaches :program="loadedProgram" :live-teams="planTeams"/>
         <TeamsRegistrationStats/>
-        <TeamsMultiTeamCoaches/>
       </aside>
     </div>
   </div>

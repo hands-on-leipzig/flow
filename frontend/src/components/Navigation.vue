@@ -11,7 +11,7 @@ import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {imageUrl} from '@/utils/images'
 import AppSwitcher from '@/components/AppSwitcher.vue'
-import {eventPrograms, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
+import {eventPrograms, teamPathFor, firstTeamsPath, hasAfternoon} from '@/utils/eventPrograms'
 import {
   ADMIN_SECTIONS,
   ADMIN_OPS_NAV,
@@ -69,6 +69,8 @@ type NavChild = {
   iconSrc?: string
   disabled?: boolean
   title?: string
+  /** Further paths that count as this child (one page across several programs). */
+  alsoPaths?: string[]
 }
 
 type NavEntry = {
@@ -80,6 +82,15 @@ type NavEntry = {
   children?: NavChild[]
 }
 
+const teamNavChildren = computed<NavChild[]>(() => {
+  const programPaths = eventPrograms(eventStore.selectedEvent).map(teamPathFor)
+  return [
+    {name: 'Teamdaten', path: '/plan/teams/data', icon: 'bi-table'},
+    ...(programPaths.length
+      ? [{name: 'Zuordnung', path: programPaths[0], icon: 'bi-diagram-3', alsoPaths: programPaths.slice(1)}]
+      : []),
+  ]
+})
 
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
@@ -115,6 +126,7 @@ const navEntries = computed<NavEntry[]>(() => [
     name: 'Teams',
     path: firstTeamsPath(eventStore.selectedEvent),
     icon: 'bi-people',
+    children: teamNavChildren.value,
   },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
   {
@@ -294,9 +306,21 @@ const adminEntwicklungNavEntries = computed<NavEntry[]>(() => mapAdminNav(ADMIN_
 
 const currentNavEntries = computed(() => (isAdminMode.value ? adminOpsNavEntries.value : navEntries.value))
 
+function childPaths(child: NavChild): string[] {
+  return [child.path, ...(child.alsoPaths ?? [])]
+}
+
+function childActive(child: NavChild): boolean {
+  return childPaths(child).some(isActive)
+}
+
+function childWarning(child: NavChild): boolean {
+  return childPaths(child).some(hasWarning)
+}
+
 function entryWarning(entry: NavEntry): boolean {
   if (entry.children?.length) {
-    return entry.children.some((child) => hasWarning(child.path))
+    return entry.children.some(childWarning)
   }
   return !!entry.path && hasWarning(entry.path)
 }
@@ -304,7 +328,7 @@ function entryWarning(entry: NavEntry): boolean {
 /** Parents with children: only highlight via active child (not own default path). */
 function entryActive(entry: NavEntry): boolean {
   if (entry.children?.length) {
-    return entry.children.some((child) => isActive(child.path))
+    return entry.children.some(childActive)
   }
   return !!entry.path && isActive(entry.path)
 }
@@ -316,8 +340,8 @@ function childNavProps(child: NavChild) {
     icon: child.icon,
     iconSrc: child.iconSrc,
     path: child.path,
-    active: isActive(child.path),
-    warning: hasWarning(child.path),
+    active: childActive(child),
+    warning: childWarning(child),
     disabled: !!child.disabled,
     title: child.title,
   }
@@ -364,11 +388,11 @@ function hasWarning(tabPath: string): boolean {
   const dots = noticeStore.dots
   const path = normalizePlanPath(tabPath)
 
-  if (path.startsWith('/plan/teams')) {
-    const slug = path.replace(/^\/plan\/teams\/?/, '')
-    if (!slug || slug === 'data') return false
-    return !!dots.teams_by_program?.[programCompact(slug)]
+  // Registration changes are synced on Teamdaten, not on the Zuordnung.
+  if (path === '/plan/teams/data') {
+    return Object.values(dots.teams_by_program ?? {}).some(Boolean)
   }
+  if (path.startsWith('/plan/teams')) return false
 
   switch (path) {
     case '/plan/schedule':

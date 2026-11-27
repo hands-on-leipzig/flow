@@ -37,6 +37,7 @@ import {ADMIN_DEFAULT_SECTION} from '@/constants/adminNav'
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
+import TeamsProgram from "@/components/teams/TeamsProgram.vue";
 import TeamsTeamData from "@/components/teams/TeamsTeamData.vue";
 import VolunteersPeople from "@/components/VolunteersPeople.vue";
 import VolunteersRoster from "@/components/VolunteersRoster.vue";
@@ -150,7 +151,7 @@ const flowRoutes = [
                 redirect: () => firstTeamsPath(useEventStore().selectedEvent),
                 children: [
                     {path: 'data', name: 'teams-data', component: TeamsTeamData},
-                    {path: ':program', redirect: {name: 'teams-data'}},
+                    {path: ':program', name: 'teams-program', component: TeamsProgram},
                 ],
             },
             {path: 'volunteers', name: 'volunteers-people', component: VolunteersPeople},

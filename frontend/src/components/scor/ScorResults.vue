@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import axios from 'axios'
+import PageTabs from '@hands-on/glass/page-tabs'
 
 const props = defineProps<{results: any}>()
 const emit = defineEmits<{saved: [results: any]}>()
@@ -372,55 +373,7 @@ const awardSortKey = ref('place')
 const awardSortDir = ref<'asc' | 'desc'>('asc')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const board = ref<'spiel' | 'jury' | 'awards'>('spiel')
-const switchEl = ref<HTMLElement | null>(null)
-const lens = ref({on: false, x: 0, y: 0, width: 0, height: 0, swoosh: false})
-let lensPlaced = false
-let lensResize: ResizeObserver | null = null
-let lensSwooshTimer = 0
-
-function placeLens() {
-  const nav = switchEl.value
-  if (!nav) return
-  const active = nav.querySelector('.scor-switch__btn.is-on')
-  if (!(active instanceof HTMLElement)) {
-    lensPlaced = false
-    lens.value = {...lens.value, on: false, swoosh: false}
-    return
-  }
-  const navBox = nav.getBoundingClientRect()
-  const box = active.getBoundingClientRect()
-  const x = box.left - navBox.left
-  const y = box.top - navBox.top
-  const moved = lensPlaced && Math.abs(x - lens.value.x) > 1
-  if (lensPlaced && !moved && Math.abs(box.width - lens.value.width) < 1 && Math.abs(box.height - lens.value.height) < 1) return
-  lens.value = {on: true, x, y, width: box.width, height: box.height, swoosh: moved}
-  lensPlaced = true
-  if (!moved) return
-  window.clearTimeout(lensSwooshTimer)
-  lensSwooshTimer = window.setTimeout(() => {
-    lens.value = {...lens.value, swoosh: false}
-  }, 280)
-}
-
-watch(switchEl, (el) => {
-  lensResize?.disconnect()
-  lensResize = null
-  lensPlaced = false
-  if (!el) return
-  nextTick(() => {
-    placeLens()
-    if (typeof ResizeObserver !== 'undefined') {
-      lensResize = new ResizeObserver(() => placeLens())
-      lensResize.observe(el)
-    }
-  })
-})
-
-watch(board, () => nextTick(() => placeLens()))
-
 onBeforeUnmount(() => {
-  lensResize?.disconnect()
-  window.clearTimeout(lensSwooshTimer)
   window.clearTimeout(awardSaveTimer)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPresentKey)
@@ -529,24 +482,17 @@ function formatPoints(value: number) {
   </div>
 
   <div v-else class="scor-results">
-    <div ref="switchEl" class="scor-switch" role="tablist" aria-label="Tabelle">
-      <span
-          v-show="lens.on"
-          class="scor-switch__lens"
-          :class="{'is-swoosh': lens.swoosh}"
-          :style="{
-            width: `${lens.width}px`,
-            height: `${lens.height}px`,
-            transform: `translate(${lens.x}px, ${lens.y}px)`,
-          }"
-          aria-hidden="true"
-      >
-        <span class="scor-switch__lens-glass"/>
-      </span>
-      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'spiel'}" :aria-selected="board === 'spiel'" @click="board = 'spiel'">Spiel</button>
-      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'jury'}" :aria-selected="board === 'jury'" @click="board = 'jury'">Jury-Bewertungen</button>
-      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'awards'}" :aria-selected="board === 'awards'" @click="board = 'awards'">Auszeichnungen</button>
-    </div>
+    <PageTabs
+        fill
+        aria-label="Tabelle"
+        :tabs="[
+          {id: 'spiel', label: 'Spiel'},
+          {id: 'jury', label: 'Jury-Bewertungen'},
+          {id: 'awards', label: 'Auszeichnungen'},
+        ]"
+        :model-value="board"
+        @update:model-value="board = $event"
+    />
 
     <section v-if="board === 'spiel'" class="scor-results__block">
       <div class="scor-board glass-card liquid-surface-inner">
@@ -783,114 +729,6 @@ function formatPoints(value: number) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.scor-switch {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  gap: 0.2rem;
-  min-height: 3.65rem;
-  padding: 0.28rem;
-  box-sizing: border-box;
-  overflow: hidden;
-  border: 1px solid var(--liquid-border);
-  border-radius: 1.85rem;
-  background: var(--liquid-tile-bg);
-  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  box-shadow: var(--liquid-shadow);
-}
-
-.scor-switch::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 34%, transparent 58%);
-}
-
-html[data-theme='dark'] .scor-switch::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 48%);
-}
-
-.scor-switch__lens {
-  position: absolute;
-  z-index: 1;
-  top: 0;
-  left: 0;
-  border-radius: 1.5rem;
-  pointer-events: none;
-  transition: transform 0.62s cubic-bezier(0.22, 1.45, 0.36, 1);
-}
-
-.scor-switch__lens-glass {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--color-bg, #fff) 88%, transparent);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 1),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.08),
-    0 6px 16px rgba(15, 23, 42, 0.12);
-  transform: scaleX(1) scaleY(1);
-  transition: transform 0.5s cubic-bezier(0.22, 1.35, 0.36, 1);
-}
-
-.scor-switch__lens.is-swoosh .scor-switch__lens-glass {
-  transform: scaleX(1.22) scaleY(0.9);
-}
-
-html[data-theme='dark'] .scor-switch__lens-glass {
-  background: color-mix(in srgb, #fff 22%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 6px 16px rgba(0, 0, 0, 0.28);
-}
-
-.scor-switch__btn {
-  position: relative;
-  z-index: 2;
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 3rem;
-  margin: 0;
-  padding: 0.45rem 0.55rem;
-  border: 0;
-  border-radius: 1.5rem;
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 650;
-  line-height: 1.15;
-  text-align: center;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.scor-switch__btn:hover,
-.scor-switch__btn:focus-visible {
-  color: var(--color-text);
-  outline: none;
-}
-
-.scor-switch__btn.is-on,
-.scor-switch__btn.is-on:hover,
-.scor-switch__btn.is-on:focus-visible {
-  color: var(--color-accent, #e85d04);
-  font-weight: 800;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scor-switch__lens,
-  .scor-switch__lens-glass {
-    transition: none;
-  }
 }
 
 .scor-results__title {

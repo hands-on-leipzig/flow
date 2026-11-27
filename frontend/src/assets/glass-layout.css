@@ -586,39 +586,6 @@
   font-size: var(--text-sm);
 }
 
-.glass-segment {
-  display: inline-flex;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  overflow: hidden;
-  background: var(--color-bg-muted);
-}
-
-.glass-segment__btn {
-  padding: 0.25rem 0.75rem;
-  font-size: var(--text-sm);
-  border: none;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-  border-left: 1px solid var(--color-border);
-}
-
-.glass-segment__btn:first-child {
-  border-left: none;
-}
-
-.glass-segment__btn:hover:not(.glass-segment__btn--active) {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-
-.glass-segment__btn--active {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-}
-
 /* ── Mobile density: use the phone width, stack chrome, shrink card chrome ── */
 @media (max-width: 768px) {
   .glass-card {

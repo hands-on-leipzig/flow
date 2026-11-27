@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Teams shell: one TeamsProgram child per attached first program.
+ * Teams shell: Teamdaten plus one Zuordnung page shared by all programs, so its program tabs persist.
  */
 defineOptions({name: 'Teams'})
 </script>
@@ -12,7 +12,7 @@ defineOptions({name: 'Teams'})
         <component
             :is="Component"
             v-if="Component"
-            :key="paneRoute.name === 'teams-data' ? 'teams-data' : String(paneRoute.params.program ?? paneRoute.path)"
+            :key="paneRoute.name === 'teams-data' ? 'teams-data' : 'teams-program'"
         />
       </keep-alive>
     </router-view>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {ref} from 'vue'
 import axios from 'axios'
-import Sortable from 'sortablejs'
 import TeamPlayersEditor from '@/components/teams/TeamPlayersEditor.vue'
 import {
   countSetCellMismatch,
@@ -16,16 +15,9 @@ import {
 } from '@/utils/photoConsentStatus'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
-import {formatPlanTeamNo} from '@/utils/planTeamLabel'
+import {getProgramTheme} from '@/utils/programTheme'
 
-type TeamDataSortKey = 'plan' | 'team_number_hot' | 'name' | 'organization'
-
-type ProgramSync = {
-  label?: string
-  pending: Array<{key: string, label: string, number: string, name: string, organization: string}>
-  missingIds: number[]
-  buttonLabel: string
-}
+type TeamDataSortKey = 'program' | 'team_number_hot' | 'name' | 'organization'
 
 const props = defineProps<{
   eventId?: number | null
@@ -33,106 +25,22 @@ const props = defineProps<{
   columns: TeamDataColumn[]
   sortKey: TeamDataSortKey
   sortDir: 'asc' | 'desc'
-  canReorder?: boolean
-  syncByProgram?: Record<number, ProgramSync>
-  syncingProgramId?: number | null
+  showProgram?: boolean
+  /** Teams no longer in the registration; gone after the next sync. */
+  missingIds?: Set<number>
 }>()
 
 const emit = defineEmits<{
   'toggle-sort': [key: TeamDataSortKey]
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
   updated: [team: TeamDataRow]
-  noshow: [team: TeamDataRow, value: boolean]
-  reorder: [programId: number, orderedIds: number[]]
-  sync: [programId: number]
 }>()
 
 const expandedTeamId = ref<number | null>(null)
-const tableEl = ref<HTMLTableElement | null>(null)
 
-function programSync(programId: number | null | undefined): ProgramSync | null {
-  if (programId == null) return null
-  return props.syncByProgram?.[programId] ?? null
+function programAccent(row: TeamDataRow) {
+  return {'--program-accent': getProgramTheme(String(row.first_program ?? '')).accent}
 }
-
-function isMissing(row: TeamDataRow) {
-  return programSync(row.first_program)?.missingIds.includes(row.id) ?? false
-}
-
-function programGroups() {
-  const groups: Array<{programId: number, label: string, rows: TeamDataRow[]}> = []
-  for (const row of props.teams) {
-    const programId = Number(row.first_program ?? 0)
-    const last = groups[groups.length - 1]
-    if (!last || last.programId !== programId) {
-      groups.push({programId, label: row.program_label || 'Programm', rows: [row]})
-    } else {
-      last.rows.push(row)
-    }
-  }
-  return groups
-}
-
-const groups = computed(programGroups)
-
-const sortables = new Map<number, Sortable>()
-
-function destroySortables() {
-  for (const instance of sortables.values()) instance.destroy()
-  sortables.clear()
-}
-
-function restoreSortableDom(evt: Sortable.SortableEvent) {
-  const parent = evt.from
-  const item = evt.item
-  if (evt.oldIndex == null || evt.oldIndex === evt.newIndex) return
-  parent.removeChild(item)
-  const remaining = [...parent.children]
-  parent.insertBefore(item, remaining[evt.oldIndex] ?? null)
-}
-
-function mountSortables() {
-  destroySortables()
-  if (!props.canReorder) return
-  const table = tableEl.value
-  if (!table) return
-  for (const body of table.querySelectorAll('tbody.team-data-program')) {
-    const programId = Number((body as HTMLElement).dataset.program)
-    if (!Number.isFinite(programId)) continue
-    const instance = Sortable.create(body as HTMLElement, {
-      draggable: 'tr.team-data-row',
-      handle: '.team-data-drag',
-      animation: 150,
-      ghostClass: 'team-data-row--ghost',
-      forceFallback: true,
-      fallbackOnBody: true,
-      onEnd(evt) {
-        const ids = [...(evt.from.querySelectorAll('tr.team-data-row'))]
-          .map((node) => Number((node as HTMLElement).dataset.teamId))
-          .filter((id) => Number.isFinite(id))
-        restoreSortableDom(evt)
-        if (evt.oldIndex === evt.newIndex) return
-        emit('reorder', programId, ids)
-      },
-    })
-    sortables.set(programId, instance)
-  }
-}
-
-onMounted(() => {
-  void nextTick(mountSortables)
-})
-
-onBeforeUnmount(() => {
-  destroySortables()
-})
-
-watch(
-  () => [props.canReorder, props.teams.map((row) => `${row.first_program}:${row.id}`).join(','), props.sortKey, props.sortDir] as const,
-  () => {
-    void nextTick(mountSortables)
-  },
-)
 
 function eventAnswersLabel(row: TeamDataRow) {
   const answerColumns = props.columns.filter((column) => column.editor === 'meal_counts' || column.kind === 'custom')
@@ -288,31 +196,10 @@ function onTeamRowClick(event: MouseEvent, row: TeamDataRow) {
   togglePlayers(row)
 }
 
-function tableSpan() {
-  return 10 + props.columns.length
-}
-
 function displayHotNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return '–'
   return String(value).padStart(4, '0')
 }
-
-const syncBubbles = computed(() => {
-  const entries = Object.entries(props.syncByProgram ?? {})
-  return entries.map(([id, sync]) => {
-    const programId = Number(id)
-    const action = sync.buttonLabel.replace(/^Abgleichen:\s*/, '')
-    const detail = sync.pending
-      .map((item) => `${item.label}: ${item.number} ${item.name}`)
-      .join(', ')
-    return {
-      programId,
-      label: sync.label || 'Programm',
-      action,
-      title: detail || sync.buttonLabel,
-    }
-  })
-})
 
 function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataColumn) {
   const target = event.currentTarget
@@ -342,32 +229,13 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 <template>
   <div class="team-data-table">
-    <div v-if="syncBubbles.length" class="team-data-sync-bubbles">
-      <button
-          v-for="bubble in syncBubbles"
-          :key="bubble.programId"
-          type="button"
-          class="team-data-sync-bubble no-touch-min"
-          :title="bubble.title"
-          :disabled="syncingProgramId === bubble.programId"
-          @click="emit('sync', bubble.programId)"
-      >
-        <i class="bi bi-arrow-repeat" aria-hidden="true"/>
-        <span>{{ bubble.label }}</span>
-        <span>{{ syncingProgramId === bubble.programId ? 'Abgleichen…' : bubble.action }}</span>
-      </button>
-    </div>
     <div class="vol-table-frame vol-table-frame--scroll vol-table-frame--roster vol-table-frame--team-data">
-    <table ref="tableEl" class="vol-table vol-table--roster vol-table--team-data">
+    <table class="vol-table vol-table--roster vol-table--team-data">
       <colgroup>
-        <col class="vol-col--drag">
-        <col class="vol-col--seq">
-        <col class="vol-col--identity">
+        <col class="vol-col--identity" :class="{'vol-col--identity-program': showProgram}">
         <col class="vol-col--organization">
         <col class="vol-col--people">
         <col class="vol-col--players">
-        <col class="vol-col--jury">
-        <col class="vol-col--noshow">
         <col class="vol-col--answers">
         <col
             v-for="column in columns"
@@ -378,21 +246,17 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
       </colgroup>
       <thead>
         <tr>
-          <th class="vol-table__sticky vol-table__sticky--drag" scope="col">
-            <span class="sr-only">Sortieren</span>
-          </th>
-          <th class="vol-table__sticky vol-table__sticky--seq" scope="col">
-            <button
-                type="button"
-                class="vol-sort"
-                :class="{'vol-sort--active': sortKey === 'plan'}"
-                @click="emit('toggle-sort', 'plan')"
-            >
-              Reihenfolge
-              <i class="bi" :class="sortIcon('plan')" aria-hidden="true"/>
-            </button>
-          </th>
           <th class="vol-table__name vol-table__sticky vol-table__sticky--identity" scope="col">
+            <button
+                v-if="showProgram"
+                type="button"
+                class="vol-sort team-data-sort--program"
+                :class="{'vol-sort--active': sortKey === 'program'}"
+                @click="emit('toggle-sort', 'program')"
+            >
+              Programm
+              <i class="bi" :class="sortIcon('program')" aria-hidden="true"/>
+            </button>
             <button
                 type="button"
                 class="vol-sort"
@@ -425,8 +289,6 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </th>
           <th scope="col">Personen</th>
           <th scope="col">Teilnehmende</th>
-          <th scope="col">Jury</th>
-          <th scope="col">No-show</th>
           <th scope="col">Eventangaben</th>
           <th
               v-for="column in columns"
@@ -438,47 +300,25 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           <th scope="col"><span class="sr-only">Aktionen</span></th>
         </tr>
       </thead>
-      <tbody
-          v-for="group in groups"
-          :key="group.programId"
-          class="team-data-program"
-          :data-program="group.programId"
-      >
-        <tr class="team-data-group">
-          <td :colspan="tableSpan()">
-            <span class="team-data-group__label">
-              <strong>{{ group.label }}</strong>
-              <span class="team-data-group__count">{{ group.rows.length }} Teams</span>
-            </span>
-          </td>
-        </tr>
-        <template v-for="row in group.rows" :key="row.id">
+      <tbody>
+        <template v-for="row in teams" :key="row.id">
         <tr
             class="team-data-row glass-table-row--hover"
-            :data-team-id="row.id"
-            :data-program="group.programId"
             :class="{
-              'team-data-row--noshow': row.noshow,
               'team-data-row--open': expandedTeamId === row.id,
-              'team-data-row--missing': isMissing(row),
+              'team-data-row--missing': missingIds?.has(row.id),
             }"
+            :title="missingIds?.has(row.id) ? 'Nicht mehr in der Anmeldung' : undefined"
             @click="onTeamRowClick($event, row)"
         >
-          <td class="vol-table__sticky vol-table__sticky--drag">
-            <button
-                v-if="canReorder"
-                type="button"
-                class="team-data-drag no-touch-min"
-                title="Reihenfolge ändern"
-                aria-label="Reihenfolge ändern"
-                @click.stop
-            >
-              <i class="bi bi-grip-vertical" aria-hidden="true"/>
-            </button>
-          </td>
-          <td class="vol-table__sticky vol-table__sticky--seq team-data-table__nr">{{ formatPlanTeamNo(row.plan_number) || '–' }}</td>
           <td class="vol-table__sticky vol-table__sticky--identity">
             <span class="team-data-identity">
+              <span
+                  v-if="showProgram"
+                  class="team-data-program"
+                  :style="programAccent(row)"
+                  :title="row.program_label"
+              >{{ row.program_label || '–' }}</span>
               <span class="team-data-identity__nr">{{ displayHotNumber(row.team_number_hot) }}</span>
               <span class="team-data-identity__name" :title="row.name">{{ row.name || '–' }}</span>
               <button
@@ -523,17 +363,6 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
               />
               {{ displayNumber(row.players_count) }}
             </span>
-          </td>
-          <td>{{ row.jury_label || '–' }}</td>
-          <td>
-            <button
-                type="button"
-                class="glass-btn-secondary team-data-noshow no-touch-min"
-                :aria-pressed="!!row.noshow"
-                @click="emit('noshow', row, !row.noshow)"
-            >
-              {{ row.noshow ? 'No-show' : 'dabei' }}
-            </button>
           </td>
           <td>{{ eventAnswersLabel(row) }}</td>
           <td
@@ -648,13 +477,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   flex-direction: column;
 }
 
-.team-data-sync-bubbles {
-  flex: 0 0 auto;
-}
-
 .vol-table-frame--team-data {
-  --td-drag: 1.75rem;
-  --td-seq: 7.4rem;
   --td-identity: 24rem;
   --td-row-bg: #fbfcfe;
   --td-open-bg: #f4f7fb;
@@ -667,14 +490,11 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   font-size: 0.8125rem;
 }
 
-.vol-col--drag { width: var(--td-drag); }
-.vol-col--seq { width: var(--td-seq); }
 .vol-col--identity { width: 24rem; min-width: 24rem; }
+.vol-col--identity-program { width: 30rem; min-width: 30rem; }
 .vol-col--organization { width: 16rem; }
 .vol-col--people { width: 9.25rem; }
 .vol-col--players { width: 11rem; }
-.vol-col--jury { width: 4.75rem; }
-.vol-col--noshow { width: 6.5rem; }
 .vol-col--answers { width: 8.75rem; }
 .vol-col--photo { width: 9rem; }
 .vol-col--meal { width: 9.75rem; }
@@ -705,18 +525,8 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   background: var(--td-row-bg);
 }
 
-.vol-table-frame--team-data :deep(.vol-table__sticky--drag) {
-  left: 0;
-  z-index: 2;
-}
-
-.vol-table-frame--team-data :deep(.vol-table__sticky--seq) {
-  left: var(--td-drag);
-  z-index: 2;
-}
-
 .vol-table-frame--team-data :deep(.vol-table__sticky--identity) {
-  left: calc(var(--td-drag) + var(--td-seq));
+  left: 0;
   z-index: 2;
 }
 
@@ -751,7 +561,6 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   object-fit: contain;
 }
 
-.team-data-table__nr,
 .team-data-table__people,
 .team-data-players {
   font-variant-numeric: tabular-nums;
@@ -771,31 +580,30 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   opacity: 0.5;
 }
 
-.team-data-group td {
-  padding-top: 0.55rem;
-  padding-bottom: 0.3rem;
-  background: #f4f6f9;
-  font-size: 0.8rem;
+.team-data-program {
+  flex: 0 0 5.5rem;
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.05rem 0.45rem;
+  border-left: 3px solid var(--program-accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--program-accent) 16%, #fff);
+  color: var(--color-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
-.team-data-group__label {
-  position: sticky;
-  left: 0.35rem;
-  display: inline-block;
-}
-
-.team-data-group__count {
-  margin-left: 0.65rem;
-  color: var(--color-text-muted);
-  font-weight: 400;
+/* Lines the Nr/Team sort buttons up with the columns under the program pill. */
+.team-data-sort--program {
+  width: 5.5rem;
+  margin-right: 0.4rem;
 }
 
 .team-data-row {
   cursor: pointer;
-}
-
-.team-data-row--noshow {
-  opacity: 0.55;
 }
 
 .vol-table-frame--team-data :deep(.team-data-row--open td),
@@ -832,29 +640,6 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   gap: 0.05rem;
 }
 
-.team-data-drag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.15rem;
-  height: 1.55rem;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: grab;
-  font-size: 1.15rem;
-}
-
-.team-data-drag:active {
-  cursor: grabbing;
-}
-
-.team-data-row--ghost {
-  opacity: 0.45;
-}
-
 .team-data-identity {
   display: flex;
   align-items: center;
@@ -881,61 +666,15 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   white-space: nowrap;
 }
 
-.team-data-identity .team-data-expand {
-  flex: 0 0 auto;
-  margin-left: 0.15rem;
-}
-
 .team-data-row--missing .team-data-identity__nr,
 .team-data-row--missing .team-data-identity__name,
 .team-data-row--missing .vol-table__role {
   text-decoration: line-through;
 }
 
-.team-data-sync-bubbles {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.65rem;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid #e07a2f;
-  border-radius: 0.85rem;
-  background: #fff1e4;
-}
-
-.team-data-sync-bubbles::before {
-  content: 'Änderungen aus der Anmeldung';
-  margin-right: 0.35rem;
-  font-size: 0.84rem;
-  font-weight: 750;
-  color: #9a3412;
-}
-
-.team-data-sync-bubble {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0.4rem 0.85rem;
-  border: none;
-  border-radius: 999px;
-  background: #e86a1a;
-  color: #fff;
-  font-size: 0.84rem;
-  font-weight: 700;
-  line-height: 1.2;
-  cursor: pointer;
-  box-shadow: 0 1px 0 rgba(122, 45, 8, 0.25);
-}
-
-.team-data-sync-bubble:hover:not(:disabled) {
-  background: #cf5510;
-}
-
-.team-data-sync-bubble:disabled {
-  opacity: 0.65;
-  cursor: default;
+.team-data-identity .team-data-expand {
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
 }
 
 .team-data-expand {
@@ -966,14 +705,6 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 .team-data-row--open .team-data-expand__icon {
   transform: rotate(180deg);
-}
-
-.team-data-noshow {
-  min-height: 1.6rem;
-  height: 1.6rem;
-  padding: 0 0.5rem;
-  font-size: 0.75rem;
-  box-shadow: none;
 }
 
 .vol-table-frame--team-data :deep(.team-data-control) {

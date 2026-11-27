@@ -1,5 +1,6 @@
 <script setup>
-import {computed, ref, onMounted} from 'vue'
+import {computed, ref, onMounted, watch} from 'vue'
+import {RouterLink} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
@@ -7,7 +8,7 @@ import SavingToast from '@/components/atoms/SavingToast.vue'
 import TeamsSyncTables from '@/components/teams/TeamsSyncTables.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {drahtIdFor, programDisplayName, programMatchesSlug} from '@/utils/eventPrograms'
-import {visibleDrahtTeams} from '@/utils/teamSync'
+import {hasSyncWork, mergeTeams, visibleDrahtTeams} from '@/utils/teamSync'
 import {
   applyJuryLanesForPlanSlots,
   buildJuryLaneByPlanSlot,
@@ -19,6 +20,8 @@ const props = defineProps({
   remoteCapacity: {type: Number, default: 0},
 })
 
+const emit = defineEmits(['teams-changed'])
+
 const isExplore = computed(() => programMatchesSlug(props.program, 'explore'))
 const isChallenge = computed(() => programMatchesSlug(props.program, 'challenge'))
 const isFuture8 = computed(() => programMatchesSlug(props.program, 'future_8'))
@@ -29,9 +32,9 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
 const teamList = ref([])
+watch(teamList, (list) => emit('teams-changed', list))
 const juryLaneByPlanSlot = ref({})
 const savingToast = ref(null)
-const syncing = ref(false)
 
 const peopleData = ref({})
 const expandedTeams = ref(new Set())
@@ -58,6 +61,11 @@ const venueCapacity = computed(() => Number(props.remoteCapacity || 0))
 
 const teamsBeyondCapacity = computed(() => teamList.value.length > planCapacity.value)
 
+const teamsLoaded = ref(false)
+const registrationChanged = computed(() =>
+  teamsLoaded.value && hasSyncWork(mergeTeams(teamList.value, visibleRemoteTeams.value)),
+)
+
 const hasTwoExploreGroups = computed(() =>
   isExplore.value && (planParams.value.e_mode === 5 || planParams.value.e_mode === 8),
 )
@@ -75,6 +83,7 @@ async function reloadTeams() {
   const teams = normalizeTeamsResponse(dbRes.data)
   juryLaneByPlanSlot.value = buildJuryLaneByPlanSlot(teams)
   teamList.value = teams
+  teamsLoaded.value = true
 }
 
 const onSort = async () => {
@@ -119,29 +128,6 @@ const updateTeamNoshow = async (team) => {
     await eventStore.updateTeamDiscrepancyStatus()
   } catch (e) {
     if (import.meta.env.DEV) console.error(`Failed to update team noshow for ${team.id}`, e)
-  }
-}
-
-async function runSync() {
-  if (syncing.value) return
-  syncing.value = true
-  savingToast?.value?.show()
-  try {
-    await axios.post(`/events/${event.value?.id}/teams/sync`, {program: props.program})
-    await reloadTeams()
-    await eventStore.updateTeamDiscrepancyStatus()
-    if (event.value?.id) {
-      await eventStore.refreshReadiness(event.value.id)
-    }
-    showGlassToast('Abgleich abgeschlossen', 'success')
-  } catch (e) {
-    showGlassToast(
-      'Abgleich fehlgeschlagen: ' + (e.response?.data?.error || e.message),
-      'error',
-    )
-  } finally {
-    syncing.value = false
-    savingToast?.value?.hide()
   }
 }
 
@@ -304,6 +290,12 @@ onMounted(async () => {
       </p>
     </div>
 
+    <p v-if="registrationChanged" class="team-list__registration-hint">
+      <i class="bi bi-arrow-repeat" aria-hidden="true"/>
+      Die Anmeldung hat Änderungen, die noch nicht in FLOW sind. Bitte übernimm sie zuerst in den
+      <RouterLink to="/plan/teams/data">Teamdaten</RouterLink>.
+    </p>
+
     <TeamsSyncTables
         v-model:team-list="teamList"
         :program="program"
@@ -313,7 +305,6 @@ onMounted(async () => {
         :has-two-explore-groups="hasTwoExploreGroups"
         :e1-teams="planParams.e1_teams"
         :show-jury="true"
-        :syncing="syncing"
         :get-coach-count="getCoachCount"
         :get-member-count="getMemberCount"
         :get-coach-names="getCoachNames"
@@ -328,7 +319,6 @@ onMounted(async () => {
         @update-noshow="updateTeamNoshow"
         @toggle="toggleTeamExpansion"
         @copy="copyToClipboard"
-        @sync="runSync"
     />
   </div>
 </template>
@@ -368,6 +358,25 @@ onMounted(async () => {
   gap: 0.75rem;
   margin-top: 0.35rem;
   font-size: 0.875rem;
+}
+
+.team-list__registration-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #e07a2f;
+  border-radius: 0.75rem;
+  background: #fff1e4;
+  color: #9a3412;
+  font-size: 0.84rem;
+}
+
+.team-list__registration-hint a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .team-list__note {
