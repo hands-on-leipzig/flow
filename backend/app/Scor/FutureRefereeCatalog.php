@@ -21,21 +21,24 @@ final class FutureRefereeCatalog
                 'items' => [
                     self::count(
                         'Schlüsselarten im jungen Wald',
-                        'Höchstens 3. Lose, ohne Material zu berühren.',
+                        'Höchstens 3 zählen, mehr steht als 3+. Lose, ohne Material zu berühren.',
                         3,
                         20,
+                        openMax: true,
                     ),
                     self::count(
                         'Schlüsselarten im großen Baum',
-                        'Höchstens 3. Lose, ohne Material zu berühren.',
+                        'Höchstens 3 zählen, mehr steht als 3+. Lose, ohne Material zu berühren.',
                         3,
                         20,
+                        openMax: true,
                     ),
                     self::count(
                         'Schlüsselarten im hohlen Baum',
-                        'Höchstens 3. Lose, ohne Material zu berühren.',
+                        'Höchstens 3 zählen, mehr steht als 3+. Lose, ohne Material zu berühren.',
                         3,
                         20,
+                        openMax: true,
                     ),
                     self::yesNo(
                         'Bonus invasive Königin',
@@ -107,7 +110,7 @@ final class FutureRefereeCatalog
                     self::count(
                         'Invasive Arten in der Eindämmungszone',
                         'Einschließlich der Königin, wenn sie dort liegt.',
-                        6,
+                        12,
                         10,
                     ),
                 ],
@@ -144,11 +147,14 @@ final class FutureRefereeCatalog
     /**
      * @return array<string, mixed>
      */
-    private static function count(string $label, ?string $hint, ?int $max, int $pointsEach): array
+    private static function count(string $label, ?string $hint, ?int $max, int $pointsEach, bool $openMax = false): array
     {
         $config = ['points_each' => $pointsEach];
         if ($max !== null) {
             $config['max'] = $max;
+        }
+        if ($openMax) {
+            $config['open_max'] = true;
         }
 
         return [

@@ -107,6 +107,7 @@ final class ScorSheetService
      * Champion sums dense ranks (tied scores share a step). The table shows competition ranks.
      * Future Robot-Game for the champion sum is the average of every scoring round.
      * A missing sheet counts as 0. The test round stays out.
+     * Grundwerte add Freundliches Miteinander from every scoring round to the jury core values.
      *
      * @return array{event: array{id: int, name: mixed}, rounds: list<array{round: int, label: string}>, teams: list<array<string, mixed>>}
      */
@@ -145,6 +146,7 @@ final class ScorSheetService
         ksort($rounds);
 
         $sheets = DB::table('scor_sheet')->where('event', $eventId)->get();
+        $refereeItems = $this->forms->itemsFor($this->forms->formId((int) $event->season, 'referee'));
         $referee = [];
         foreach ($sheets as $sheet) {
             if ($sheet->kind !== 'referee') {
@@ -164,6 +166,7 @@ final class ScorSheetService
             $referee[$teamId][$round] = [
                 'points' => $points,
                 'confirmed' => (bool) $sheet->confirmed_referee && (bool) $sheet->confirmed_team,
+                'gracious' => FutureRefereeRules::graciousPoints($refereeItems, $this->answersOf($sheet)),
             ];
         }
 
@@ -172,6 +175,7 @@ final class ScorSheetService
         foreach ($teams as $id => $team) {
             $cells = [];
             $sum = 0;
+            $gracious = 0;
             foreach ($rounds as $round) {
                 $cell = $referee[$id][$round['round']] ?? null;
                 $cells[] = $cell === null ? null : [
@@ -181,9 +185,11 @@ final class ScorSheetService
                 ];
                 if ($cell !== null) {
                     $sum += $cell['points'];
+                    $gracious += $cell['gracious'];
                 }
             }
             $categories = $jury[$id] ?? ['research' => 0, 'robotdesign' => 0, 'core_values' => 0];
+            $categories['core_values'] += $gracious;
             $rows[] = [
                 'id' => $id,
                 'number' => $team['number'],
@@ -249,6 +255,33 @@ final class ScorSheetService
         $user->id = 0;
 
         return (new ScorPublicResults())->fromResults($this->results($user, $eventId, public: true));
+    }
+
+    /**
+     * Recompute stored referee points with the current rules.
+     *
+     * @return int sheets whose points changed
+     */
+    public function refreshRefereePoints(): int
+    {
+        $changed = 0;
+        $items = [];
+        foreach (DB::table('scor_sheet')->where('kind', 'referee')->get() as $sheet) {
+            $season = DB::table('event')->where('id', $sheet->event)->value('season');
+            if ($season === null) {
+                continue;
+            }
+            $formId = $this->forms->formId((int) $season, 'referee');
+            $items[$formId] ??= $this->forms->itemsFor($formId);
+            $answers = $this->answersOf($sheet);
+            $points = FutureRefereeRules::finalizePoints($this->score($formId, $answers)['points'], $items[$formId], $answers);
+            if ($points !== (int) $sheet->points) {
+                DB::table('scor_sheet')->where('id', $sheet->id)->update(['points' => $points]);
+                $changed++;
+            }
+        }
+
+        return $changed;
     }
 
     public function closeEvent(User $user, int $eventId): array
@@ -612,6 +645,7 @@ final class ScorSheetService
         $event = $this->eventRow($eventId);
         $items = $this->forms->itemsFor($formId);
         $follows = $this->feedbackFollows($items);
+        $requires = $kind === 'referee' ? FutureRefereeRules::requirements($items) : [];
         $sections = [];
         foreach ($items as $item) {
             $sectionId = (int) $item->section_id;
@@ -623,6 +657,7 @@ final class ScorSheetService
                     'note' => $item->section_note,
                     'disabled' => in_array($sectionId, $answers['disabled_sections'], true),
                     'follows' => $follows[$sectionId] ?? null,
+                    'core_values' => $kind === 'referee' && trim((string) $item->section_title) === FutureRefereeRules::GRACIOUS_SECTION,
                     'items' => [],
                 ];
             }
@@ -636,6 +671,7 @@ final class ScorSheetService
                 'config' => $this->decode($item->config),
                 'value' => $answers['values'][$itemId] ?? ($answers['texts'][$itemId] ?? null),
                 'comment' => $answers['comments'][$itemId] ?? '',
+                'requires' => $requires[(int) $item->id] ?? null,
             ];
         }
 

@@ -144,7 +144,8 @@ const visibleSections = computed(() => (props.sheet?.sections || []).filter((sec
 const gracious = computed(() => {
   const rounds = props.sheet?.game_gracious || []
   if (!rounds.length) return ''
-  return `Spiel: ${rounds.map((round: any) => round.points ?? '–').join(' · ')}`
+  const sum = rounds.reduce((total: number, round: any) => total + (round.points ?? 0), 0)
+  return `+ ${sum} aus dem Spiel: ${rounds.map((round: any) => round.points ?? '–').join(' · ')}`
 })
 
 function feedbackSkipped(section: any) {
@@ -378,7 +379,7 @@ function setLevel(id: number, level: number) {
       <p class="jury-bar__points">{{ sheet.points }} <span>Punkte</span></p>
       <p class="jury-bar__core">
         Grundwerte {{ sheet.core_points }}
-        <span v-if="gracious" class="jury-bar__game" title="Freundliches Miteinander aus den Schiri-Bögen, je Runde">({{ gracious }})</span>
+        <span v-if="gracious" class="jury-bar__game" title="Freundliches Miteinander aus den Schiri-Bögen zählt zu den Grundwerten, je Runde">{{ gracious }}</span>
       </p>
       <button v-if="!sheet.completed" type="button" class="glass-btn-accent" :disabled="busy || sheet.lifecycle?.closed" @click="complete">Bewertung abschließen</button>
       <button v-if="!sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy || sheet.lifecycle?.closed" @click="save">Speichern</button>
