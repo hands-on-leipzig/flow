@@ -22,6 +22,7 @@ export type NoticeDots = {
   rooms_teams: boolean
   volunteers_staffing: boolean
   teams_by_program: Record<string, boolean>
+  schedule_counts_by_program: Record<string, boolean>
 }
 
 const STORAGE_KEY = 'flow.noticeToday'
@@ -33,6 +34,7 @@ const emptyDots = (): NoticeDots => ({
   rooms_teams: false,
   volunteers_staffing: false,
   teams_by_program: {},
+  schedule_counts_by_program: {},
 })
 
 function isIsoDate(value: string): boolean {
@@ -95,6 +97,7 @@ export const useNoticeStore = defineStore('notice', {
           ...emptyDots(),
           ...(data?.dots ?? {}),
           teams_by_program: data?.dots?.teams_by_program ?? {},
+          schedule_counts_by_program: data?.dots?.schedule_counts_by_program ?? {},
         }
         this.restore_available = !!data?.restore_available
       } catch (error) {

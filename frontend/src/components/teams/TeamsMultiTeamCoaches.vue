@@ -34,7 +34,7 @@ type PlanTeam = {
 type PlanSlot = {plan: number | null, lane: number | null}
 
 const props = defineProps<{
-  /** Zuordnung: only coaches with a team in this program, each team with its plan slot. */
+  /** Reihenfolge: only coaches with a team in this program, each team with its plan slot. */
   program?: string
   /** Current order of that program's teams while sorting. */
   liveTeams?: PlanTeam[]
@@ -230,7 +230,7 @@ watch(() => event.value?.id, () => {
   void loadSavedSlots()
 })
 
-// One Zuordnung page for all programs: the previous program's order may have changed.
+// One Reihenfolge page for all programs: the previous program's order may have changed.
 watch(() => props.program, (next, prev) => {
   if (next && prev && next !== prev) void loadSavedSlots()
 })

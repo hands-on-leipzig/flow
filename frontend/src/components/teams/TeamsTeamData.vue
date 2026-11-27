@@ -477,7 +477,7 @@ onActivated(() => {
           <h1 class="vol-page__title">Teamdaten</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Bitte prüfe, ob die Teamdaten vollständig sind.</p>
+        <p class="vol-page__sub">Verwalten der Teams, ihrer Mitglieder und der Angaben für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -615,8 +615,8 @@ onActivated(() => {
               v-for="program in programFilters"
               :key="program.first_program"
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': activeProgramFilters.has(Number(program.first_program))}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': activeProgramFilters.has(Number(program.first_program))}"
               :aria-pressed="activeProgramFilters.has(Number(program.first_program))"
               @click="toggleProgramFilter(Number(program.first_program))"
           >
@@ -624,9 +624,9 @@ onActivated(() => {
                 :program="program"
                 size="chip"
                 decorative
-                class="vol-staffing-filter__logo"
+                class="glass-filter-chip__logo"
             />
-            <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+            <span class="glass-filter-chip__label">{{ programDisplayName(program) }}</span>
           </button>
           </template>
         </template>
@@ -634,46 +634,46 @@ onActivated(() => {
           <span class="vol-staffing-filters__sep" aria-hidden="true"/>
           <button
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': showOnlyPhotoUnset}"
               :aria-pressed="showOnlyPhotoUnset"
               title="Nur Teams mit fehlender Fotoerlaubnis anzeigen"
               @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
           >
-            <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Fotoerlaubnis fehlt</span>
+            <i class="bi bi-camera glass-filter-chip__icon" aria-hidden="true"/>
+            <span class="glass-filter-chip__label">Fotoerlaubnis fehlt</span>
           </button>
           <button
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': showOnlyIncomplete}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': showOnlyIncomplete}"
               :aria-pressed="showOnlyIncomplete"
               @click="showOnlyIncomplete = !showOnlyIncomplete"
           >
-            <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Antworten unvollständig</span>
+            <i class="bi bi-exclamation-circle glass-filter-chip__icon" aria-hidden="true"/>
+            <span class="glass-filter-chip__label">Antworten unvollständig</span>
           </button>
           <button
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': showOnlyParticipantListIncomplete}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': showOnlyParticipantListIncomplete}"
               :aria-pressed="showOnlyParticipantListIncomplete"
               title="Nur Teams ohne Teilnehmer:innen in der Anmeldung anzeigen"
               @click="showOnlyParticipantListIncomplete = !showOnlyParticipantListIncomplete"
           >
-            <i class="bi bi-people vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Teilnehmerliste unvollständig</span>
+            <i class="bi bi-people glass-filter-chip__icon" aria-hidden="true"/>
+            <span class="glass-filter-chip__label">Teilnehmerliste unvollständig</span>
           </button>
           <button
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': showOnlyUnconfirmed}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': showOnlyUnconfirmed}"
               :aria-pressed="showOnlyUnconfirmed"
               title="Nur Teams ohne Bestätigung „Teilnehmende komplett“ anzeigen"
               @click="showOnlyUnconfirmed = !showOnlyUnconfirmed"
           >
-            <i class="bi bi-check2-square vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Bestätigung fehlt</span>
+            <i class="bi bi-check2-square glass-filter-chip__icon" aria-hidden="true"/>
+            <span class="glass-filter-chip__label">Bestätigung fehlt</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredTeams.length }} / {{ teams.length }}

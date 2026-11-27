@@ -397,24 +397,24 @@ onMounted(() => load())
           <span class="vol-staffing-filters__sep" aria-hidden="true"/>
           <button
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': showOnlyPhotoUnset}"
               :aria-pressed="showOnlyPhotoUnset"
               title="Nur Helfer:innen mit fehlender Fotoerlaubnis anzeigen"
               @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
           >
-            <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Fotoerlaubnis fehlt</span>
+            <i class="bi bi-camera glass-filter-chip__icon" aria-hidden="true"/>
+            <span class="glass-filter-chip__label">Fotoerlaubnis fehlt</span>
           </button>
           <button
               type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': showOnlyUnset}"
+              class="glass-filter-chip"
+              :class="{'glass-filter-chip--active': showOnlyUnset}"
               :aria-pressed="showOnlyUnset"
               @click="showOnlyUnset = !showOnlyUnset"
           >
-            <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Antworten unvollständig</span>
+            <i class="bi bi-exclamation-circle glass-filter-chip__icon" aria-hidden="true"/>
+            <span class="glass-filter-chip__label">Antworten unvollständig</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredRoster.length }} / {{ roster.length }}

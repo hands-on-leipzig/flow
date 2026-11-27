@@ -10,6 +10,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import PageTabs from '@hands-on/glass/page-tabs'
 import { getProgramTheme } from '@/utils/programTheme'
 import { programDisplayName } from '@/utils/eventPrograms'
 import {
@@ -339,6 +340,24 @@ function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 
   if (view.value !== v) view.value = v
 }
 
+const mainViewTabs = computed(() => [
+  {id: 'overview', label: 'Überblick'},
+  {id: 'roles', label: 'Rollen'},
+  {id: 'teams', label: 'Teams'},
+  ...(hasMatchPlan.value ? [{id: 'robot-game', label: 'Match-Plan'}] : []),
+])
+
+const adminViewTabs = computed(() => [
+  {id: 'activities', label: 'Aktivitäten'},
+  ...(hasMatchPlan.value ? [{id: 'quality', label: 'Plan-Qualität'}] : []),
+])
+
+function selectView(id: string | number) {
+  if (id === 'robot-game') openMatchPlan()
+  else if (id === 'quality') openQuality()
+  else setView(id as 'overview' | 'roles' | 'teams' | 'activities')
+}
+
 function openMatchPlan(programId?: number) {
   if (programId != null) {
     selectedFirstProgram.value = programId
@@ -454,35 +473,13 @@ onBeforeUnmount(hideTeamTip)
     <div class="glass-panel-header !mb-0 shrink-0">
       <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-          <button
-            type="button"
-            class="venues-view-btn"
-            :class="{ 'is-active': view === 'overview' }"
-            :aria-pressed="view === 'overview'"
-            @click="setView('overview')"
-          >Überblick</button>
-          <button
-            type="button"
-            class="venues-view-btn"
-            :class="{ 'is-active': view === 'roles' }"
-            :aria-pressed="view === 'roles'"
-            @click="setView('roles')"
-          >Rollen</button>
-          <button
-            type="button"
-            class="venues-view-btn"
-            :class="{ 'is-active': view === 'teams' }"
-            :aria-pressed="view === 'teams'"
-            @click="setView('teams')"
-          >Teams</button>
-          <button
-            v-if="hasMatchPlan"
-            type="button"
-            class="venues-view-btn"
-            :class="{ 'is-active': view === 'robot-game' }"
-            :aria-pressed="view === 'robot-game'"
-            @click="openMatchPlan()"
-          >Match-Plan</button>
+          <PageTabs
+            compact
+            aria-label="Ansicht"
+            :tabs="mainViewTabs"
+            :model-value="view"
+            @update:model-value="selectView"
+          />
         </div>
 
         <div v-if="showAdminInline" class="flex flex-wrap items-center gap-1.5">
@@ -493,21 +490,13 @@ onBeforeUnmount(hideTeamTip)
           >
             <i class="bi bi-shield-lock" aria-hidden="true"/>
           </span>
-          <button
-            type="button"
-            class="venues-view-btn"
-            :class="{ 'is-active': view === 'activities' }"
-            :aria-pressed="view === 'activities'"
-            @click="setView('activities')"
-          >Aktivitäten</button>
-          <button
-            v-if="hasMatchPlan"
-            type="button"
-            class="venues-view-btn"
-            :class="{ 'is-active': view === 'quality' }"
-            :aria-pressed="view === 'quality'"
-            @click="openQuality()"
-          >Plan-Qualität</button>
+          <PageTabs
+            compact
+            aria-label="Admin-Ansicht"
+            :tabs="adminViewTabs"
+            :model-value="view"
+            @update:model-value="selectView"
+          />
           <button
             type="button"
             class="glass-btn-accent"
@@ -545,13 +534,13 @@ onBeforeUnmount(hideTeamTip)
         v-for="p in rolesPrograms"
         :key="p.id"
         type="button"
-        class="venues-view-btn preview-program-choice"
-        :class="{ 'is-active': rolesProgramOn[p.id] !== false }"
+        class="glass-filter-chip"
+        :class="{ 'glass-filter-chip--active': rolesProgramOn[p.id] !== false }"
         :aria-pressed="rolesProgramOn[p.id] !== false"
         @click="toggleRolesProgram(p.id)"
       >
-        <ProgramLogo :program="p.id" size="sm" decorative class="preview-program-choice__logo" />
-        <span>{{ p.label }}</span>
+        <ProgramLogo :program="p.id" size="chip" decorative class="glass-filter-chip__logo" />
+        <span class="glass-filter-chip__label">{{ p.label }}</span>
       </button>
     </div>
 
@@ -563,13 +552,13 @@ onBeforeUnmount(hideTeamTip)
         v-for="p in teamsPrograms"
         :key="p.id"
         type="button"
-        class="venues-view-btn preview-program-choice"
-        :class="{ 'is-active': teamsProgramOn[p.id] !== false }"
+        class="glass-filter-chip"
+        :class="{ 'glass-filter-chip--active': teamsProgramOn[p.id] !== false }"
         :aria-pressed="teamsProgramOn[p.id] !== false"
         @click="toggleTeamsProgram(p.id)"
       >
-        <ProgramLogo :program="p.id" size="sm" decorative class="preview-program-choice__logo" />
-        <span>{{ p.label }}</span>
+        <ProgramLogo :program="p.id" size="chip" decorative class="glass-filter-chip__logo" />
+        <span class="glass-filter-chip__label">{{ p.label }}</span>
       </button>
     </div>
 
@@ -581,19 +570,19 @@ onBeforeUnmount(hideTeamTip)
         v-for="programId in matchPlanPrograms"
         :key="`program-filter-${programId}`"
         type="button"
-        class="venues-view-btn preview-program-choice"
-        :class="{ 'is-active': selectedFirstProgram === programId }"
+        class="glass-filter-chip"
+        :class="{ 'glass-filter-chip--active': selectedFirstProgram === programId }"
         :aria-pressed="selectedFirstProgram === programId"
         @click="selectMatchPlanProgram(programId)"
       >
         <ProgramLogo
           v-if="themeForProgram(programId).catalogName"
           :program="programId"
-          size="sm"
+          size="chip"
           decorative
-          class="preview-program-choice__logo"
+          class="glass-filter-chip__logo"
         />
-        <span>{{ matchPlanProgramLabel(programId) }}</span>
+        <span class="glass-filter-chip__label">{{ matchPlanProgramLabel(programId) }}</span>
       </button>
     </div>
 
@@ -871,20 +860,6 @@ td {
 .roles-grid-host[data-hide-programs~='3'] :deep([data-program-id='3']),
 .roles-grid-host[data-hide-programs~='8'] :deep([data-program-id='8']) {
   display: none !important;
-}
-
-.preview-program-choice {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-}
-
-.preview-program-choice__logo {
-  width: 1.25rem;
-  height: 1.25rem;
-  object-fit: contain;
-  flex-shrink: 0;
 }
 
 .preview-team-tip {

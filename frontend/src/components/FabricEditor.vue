@@ -3,6 +3,7 @@ import {ActiveSelection, Canvas, FabricImage, FabricObject, Gradient, Group, Poi
 import {AligningGuidelines} from 'fabric-aligning-guidelines'
 import {computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, useSlots} from 'vue';
 import {Popover, PopoverButton, PopoverPanel} from '@headlessui/vue';
+import PageTabs from '@hands-on/glass/page-tabs';
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import {imageUrl} from '@/utils/images'
@@ -88,9 +89,15 @@ const activeIds = ref<number[]>([]);
 const layers = ref<LayerItem[]>([]);
 const slideBackground = reactive({color: '#ffffff', gradientId: null as string | null, hasImage: false});
 const coveredLogo = ref<SeasonLogoPlacement | null>(null);
-const panelTab = ref<'design' | 'layers' | 'settings'>(
+type PanelTab = 'design' | 'layers' | 'settings';
+const panelTab = ref<PanelTab>(
     props.defaultPanel === 'settings' && !hasSettings.value ? 'design' : props.defaultPanel,
 );
+const panelTabs = computed(() => [
+  ...(hasSettings.value ? [{id: 'settings', label: 'Einstellungen', icon: 'bi-gear'}] : []),
+  {id: 'design', label: 'Gestalten', icon: 'bi-sliders'},
+  {id: 'layers', label: 'Ebenen', icon: 'bi-layers', count: layers.value.length},
+]);
 const snapping = ref(localStorage.getItem(SNAPPING_KEY) !== 'off');
 const zoomMode = ref<'fit' | number>('fit');
 const zoom = ref(1);
@@ -1054,20 +1061,15 @@ function onStageMouseDown() {
 
       <!-- Seitenleiste -->
       <aside class="se-panel">
-        <div class="se-panel__tabs" role="tablist">
-          <button v-if="hasSettings" type="button" role="tab" :aria-selected="panelTab === 'settings'"
-                  :class="{ 'is-active': panelTab === 'settings' }" @click="panelTab = 'settings'">
-            <i class="bi bi-gear"></i> Einstellungen
-          </button>
-          <button type="button" role="tab" :aria-selected="panelTab === 'design'"
-                  :class="{ 'is-active': panelTab === 'design' }" @click="panelTab = 'design'">
-            <i class="bi bi-sliders"></i> Gestalten
-          </button>
-          <button type="button" role="tab" :aria-selected="panelTab === 'layers'"
-                  :class="{ 'is-active': panelTab === 'layers' }" @click="panelTab = 'layers'">
-            <i class="bi bi-layers"></i> Ebenen
-            <span v-if="layers.length" class="se-panel__count">{{ layers.length }}</span>
-          </button>
+        <div class="se-panel__tabs">
+          <PageTabs
+              fill
+              compact
+              aria-label="Seitenleiste"
+              :tabs="panelTabs"
+              :model-value="panelTab"
+              @update:model-value="panelTab = $event as PanelTab"
+          />
         </div>
         <div class="se-panel__body">
           <div v-if="panelTab === 'settings'">
@@ -1211,43 +1213,8 @@ function onStageMouseDown() {
 
 .se-panel__tabs {
   display: flex;
-  gap: 0.25rem;
   padding: 0.5rem;
   border-bottom: 1px solid var(--color-border-strong);
-}
-
-.se-panel__tabs button {
-  flex: 1 1 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  height: 2rem;
-  padding: 0 0.55rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  white-space: nowrap;
-  color: var(--color-text-muted);
-}
-
-.se-panel__tabs button:hover {
-  background: var(--color-bg-hover);
-}
-
-.se-panel__tabs button.is-active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.se-panel__count {
-  min-width: 1.2rem;
-  padding: 0 0.3rem;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  line-height: 1.2rem;
-  background: var(--color-bg-muted);
-  color: var(--color-text-muted);
 }
 
 .se-panel__body {

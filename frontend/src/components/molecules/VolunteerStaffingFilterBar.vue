@@ -48,18 +48,18 @@ function assignedCount(key: StaffingFilterKey) {
     <template v-else>
       <button
           type="button"
-          class="vol-staffing-filter"
-          :class="{'vol-staffing-filter--active': isActive('cross')}"
+          class="glass-filter-chip"
+          :class="{'glass-filter-chip--active': isActive('cross')}"
           :aria-pressed="isActive('cross')"
           @click="onToggle('cross')"
       >
         <StaffingScopeLeading filter-key="cross" size="chip" :boxed="false"/>
-        <span class="vol-staffing-filter__label">
-          Übergreifend<span v-if="scopes" class="vol-staffing-filter__assigned"> ({{ assignedCount('cross') }})</span>
+        <span class="glass-filter-chip__label">
+          Übergreifend<span v-if="scopes" class="glass-filter-chip__count"> ({{ assignedCount('cross') }})</span>
         </span>
         <span
             v-if="hasAttention?.('cross')"
-            class="vol-staffing-filter__dot"
+            class="glass-filter-chip__dot"
             title="Unter Min"
         />
       </button>
@@ -67,8 +67,8 @@ function assignedCount(key: StaffingFilterKey) {
           v-for="program in (programs ?? [])"
           :key="`filter-program-${programId(program)}`"
           type="button"
-          class="vol-staffing-filter"
-          :class="{'vol-staffing-filter--active': isActive(`program:${programId(program)}`)}"
+          class="glass-filter-chip"
+          :class="{'glass-filter-chip--active': isActive(`program:${programId(program)}`)}"
           :aria-pressed="isActive(`program:${programId(program)}`)"
           @click="onToggle(`program:${programId(program)}`)"
       >
@@ -77,29 +77,29 @@ function assignedCount(key: StaffingFilterKey) {
             size="chip"
             :boxed="false"
         />
-        <span class="vol-staffing-filter__label">
-          {{ programDisplayName(program) }}<span v-if="scopes" class="vol-staffing-filter__assigned"> ({{ assignedCount(`program:${programId(program)}`) }})</span>
+        <span class="glass-filter-chip__label">
+          {{ programDisplayName(program) }}<span v-if="scopes" class="glass-filter-chip__count"> ({{ assignedCount(`program:${programId(program)}`) }})</span>
         </span>
         <span
             v-if="hasAttention?.(`program:${programId(program)}`)"
-            class="vol-staffing-filter__dot"
+            class="glass-filter-chip__dot"
             title="Unter Min"
         />
       </button>
       <button
           type="button"
-          class="vol-staffing-filter"
-          :class="{'vol-staffing-filter--active': isActive('local')}"
+          class="glass-filter-chip"
+          :class="{'glass-filter-chip--active': isActive('local')}"
           :aria-pressed="isActive('local')"
           @click="onToggle('local')"
       >
         <StaffingScopeLeading filter-key="local" size="chip" :boxed="false"/>
-        <span class="vol-staffing-filter__label">
-          Zusätzlich<span v-if="scopes" class="vol-staffing-filter__assigned"> ({{ assignedCount('local') }})</span>
+        <span class="glass-filter-chip__label">
+          Zusätzlich<span v-if="scopes" class="glass-filter-chip__count"> ({{ assignedCount('local') }})</span>
         </span>
         <span
             v-if="hasAttention?.('local')"
-            class="vol-staffing-filter__dot"
+            class="glass-filter-chip__dot"
             title="Unter Min"
         />
       </button>

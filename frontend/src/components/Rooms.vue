@@ -4,6 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import draggable from 'vuedraggable'
+import PageTabs from '@hands-on/glass/page-tabs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {eventPrograms, programDisplayName, programMatchesSlug, programSlug, programNameForId} from '@/utils/eventPrograms'
 import {getProgramTheme} from '@/utils/programTheme'
@@ -1153,33 +1154,18 @@ const hasWarning = (tab) => {
 
       <div class="vol-staffing-pane vol-staffing-pane--side">
         <div class="glass-card liquid-surface-inner vol-sidebar-tile">
-        <div class="glass-tabs !mb-3 md:!mb-4">
-          <button
-              type="button"
-              :class="['glass-tab relative', activeTab === 'activities' ? 'glass-tab--active' : '']"
-              @click="activeTab = 'activities'"
-          >
-            Aktivitäten
-            <span
-                v-if="hasWarning('activities')"
-                class="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full"
-                title="Noch nicht alle Aktivitäten zugeordnet"
-            ></span>
-          </button>
-
-          <button
-              type="button"
-              :class="['glass-tab relative', activeTab === 'teams' ? 'glass-tab--active' : '']"
-              @click="activeTab = 'teams'"
-          >
-            Teams
-            <span
-                v-if="hasWarning('teams')"
-                class="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full"
-                title="Noch nicht alle Teams zugeordnet"
-            ></span>
-          </button>
-        </div>
+        <PageTabs
+            fill
+            compact
+            class="!mb-3 md:!mb-4"
+            aria-label="Zuordnen"
+            :tabs="[
+              {id: 'activities', label: 'Aktivitäten', dot: hasWarning('activities'), dotTitle: 'Noch nicht alle Aktivitäten zugeordnet'},
+              {id: 'teams', label: 'Teams', dot: hasWarning('teams'), dotTitle: 'Noch nicht alle Teams zugeordnet'},
+            ]"
+            :model-value="activeTab"
+            @update:model-value="activeTab = $event"
+        />
 
         <!-- Dynamisch alle Gruppen aus der gemeinsamen Struktur -->
         <div v-for="category in assignables" v-show="activeTab === category.id" :key="category.id">

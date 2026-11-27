@@ -231,21 +231,21 @@ const contextBarClass = (ctx: string | null | undefined) => {
     <div class="vol-staffing-filters mparam-shell__program-filters">
       <button
           type="button"
-          class="vol-staffing-filter"
-          :class="{'vol-staffing-filter--active': isProgramFilterActive(0)}"
+          class="glass-filter-chip"
+          :class="{'glass-filter-chip--active': isProgramFilterActive(0)}"
           :aria-pressed="isProgramFilterActive(0)"
           @click="toggleProgramFilter(0)"
       >
-        <i class="bi bi-intersect vol-staffing-filter__icon" aria-hidden="true"/>
-        <span class="vol-staffing-filter__label">Übergreifend</span>
+        <i class="bi bi-intersect glass-filter-chip__icon" aria-hidden="true"/>
+        <span class="glass-filter-chip__label">Übergreifend</span>
       </button>
       <template v-if="programsWithParameters.length > 1">
       <button
           v-for="program in programsWithParameters"
           :key="`filter-program-${programId(program)}`"
           type="button"
-          class="vol-staffing-filter"
-          :class="{'vol-staffing-filter--active': isProgramFilterActive(programId(program))}"
+          class="glass-filter-chip"
+          :class="{'glass-filter-chip--active': isProgramFilterActive(programId(program))}"
           :aria-pressed="isProgramFilterActive(programId(program))"
           @click="toggleProgramFilter(programId(program))"
       >
@@ -253,9 +253,9 @@ const contextBarClass = (ctx: string | null | undefined) => {
             :program="program"
             size="chip"
             decorative
-            class="vol-staffing-filter__logo"
+            class="glass-filter-chip__logo"
         />
-        <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+        <span class="glass-filter-chip__label">{{ programDisplayName(program) }}</span>
       </button>
       </template>
     </div>

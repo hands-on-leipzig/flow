@@ -157,6 +157,47 @@ class NoticeApiTest extends TestCase
         $this->assertSame('Teamzahlen oder Kapazitäten prüfen.', $schedule->first()['body']);
     }
 
+    public function test_count_mismatch_on_teams_screen_is_one_notice_per_program(): void
+    {
+        DB::table('m_notice')->where('key', 'schedule_counts')->update(['help_screen' => 3]);
+        $this->seedEvent(date: '2026-11-20', programs: [
+            ['id' => 1, 'name' => 'EXPLORE', 'display_name' => 'Explore'],
+            ['id' => 2, 'name' => 'CHALLENGE', 'display_name' => 'Challenge'],
+        ]);
+        DB::table('m_parameter')->insert([
+            ['id' => 1, 'name' => 'e_teams'],
+            ['id' => 2, 'name' => 'c_teams'],
+            ['id' => 3, 'name' => 'f8_teams'],
+        ]);
+        DB::table('plan_param_value')->insert([
+            ['plan' => 1, 'parameter' => 1, 'set_value' => '5'],
+            ['plan' => 1, 'parameter' => 2, 'set_value' => '1'],
+            ['plan' => 1, 'parameter' => 3, 'set_value' => '0'],
+        ]);
+        $this->mockDraht([
+            [
+                'first_program' => 1,
+                'name' => 'EXPLORE',
+                'teams' => [['ref' => '1', 'name' => 'A']],
+            ],
+            [
+                'first_program' => 2,
+                'name' => 'CHALLENGE',
+                'teams' => [['ref' => '9', 'name' => 'C']],
+            ],
+        ]);
+
+        $payload = $this->getJson('/api/events/1/notices')->assertOk()->json();
+        $schedule = collect($payload['messages'])->where('key', 'schedule_counts')->values();
+
+        $this->assertCount(1, $schedule);
+        $this->assertSame('explore', $schedule[0]['program']);
+        $this->assertSame('/plan/teams/explore', $schedule[0]['jump_path']);
+        $this->assertTrue($payload['dots']['schedule']);
+        $this->assertTrue($payload['dots']['schedule_counts_by_program']['explore']);
+        $this->assertFalse($payload['dots']['schedule_counts_by_program']['challenge']);
+    }
+
     public function test_unattached_program_does_not_affect_schedule_counts(): void
     {
         $this->seedEvent(date: '2026-11-20');
