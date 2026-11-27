@@ -96,6 +96,7 @@ final class ScorSheetService
             'stage' => (new ScorStage())->state($eventId),
             'lifecycle' => (new ScorLifecycle())->state($eventId),
             'flow_admin' => $user->isFlowAdmin(),
+            'mock_data' => $roles->admin && ScorMockData::available(),
             'matches' => $matches,
             'teams' => array_values($teams),
         ];
