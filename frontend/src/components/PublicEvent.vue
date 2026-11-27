@@ -45,31 +45,10 @@ const heroTitle = computed(() => {
   return parts.join(' · ')
 })
 
-const publishedAwardLines = computed(() => {
-  const awards = publishedResults.value?.awards
-  if (!awards) return []
-  const line = (team) => team ? `${team.number} ${team.name}` : ''
-  const place = (id) => line(awards.podium?.find((entry) => entry.place === id)?.team)
-  const winner = (id) => line(awards.categories?.find((entry) => entry.category === id)?.winner)
-  const lines = [
-    {label: '1. Platz', value: place('champion')},
-    {label: '2. Platz', value: place('silver')},
-    {label: '3. Platz', value: place('bronze')},
-    {label: 'Projekt', value: winner('research')},
-    {label: 'Technisches Design', value: winner('robotdesign')},
-    {label: 'Grundwerte', value: winner('core_values')},
-    {label: 'Coaching', value: line(awards.coaching)},
-    {label: 'Spiel', value: (awards.game || []).map(line).join(', ')},
-  ]
-  return lines.filter((line) => line.value)
-})
-
 function resultsLabel(firstProgram) {
   const name = programDisplayName(resolveProgramRef(event.value, firstProgram))
   return name ? `Ergebnisse ${name}` : 'Ergebnisse'
 }
-
-const showResultsSection = computed(() => !!publishedResults.value || contaoResultLinks.value.length > 0)
 
 const loadEvent = async () => {
   try {
@@ -467,33 +446,38 @@ onMounted(async () => {
         <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
 
+      <section v-if="publishedResults" class="pe-springboard-card glass-card liquid-surface-inner">
+        <button type="button" class="pe-springboard pe-springboard--plain" @click="openResults">
+          <span class="pe-springboard__icon" aria-hidden="true">
+            <i class="bi bi-trophy"/>
+          </span>
+          <span class="pe-springboard__copy">
+            <span class="pe-springboard__kicker">Jetzt öffnen</span>
+            <h2 class="pe-springboard__title">{{ resultsLabel(8) }}</h2>
+          </span>
+          <span class="pe-springboard__go" aria-hidden="true">
+            <i class="bi bi-arrow-right"/>
+          </span>
+        </button>
+      </section>
+
       <section
-          v-if="showResultsSection"
-          class="glass-card liquid-surface-inner pe-section"
+          v-for="link in contaoResultLinks"
+          :key="link.url"
+          class="pe-springboard-card glass-card liquid-surface-inner"
       >
-        <h2 class="glass-card__title">Ergebnisse</h2>
-        <ul v-if="publishedAwardLines.length" class="pe-results">
-          <li v-for="line in publishedAwardLines" :key="line.label">
-            <span>{{ line.label }}</span>
-            <strong>{{ line.value }}</strong>
-          </li>
-        </ul>
-        <div class="pe-results__links">
-          <button v-if="publishedResults" type="button" class="glass-btn-secondary" @click="openResults">
-            {{ resultsLabel(8) }}
-          </button>
-          <a
-              v-for="link in contaoResultLinks"
-              :key="link.url"
-              class="glass-btn-secondary pe-results__external"
-              :href="link.url"
-              target="_blank"
-              rel="noopener noreferrer"
-          >
-            {{ resultsLabel(link.first_program) }}
-            <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-          </a>
-        </div>
+        <a class="pe-springboard pe-springboard--plain" :href="link.url" target="_blank" rel="noopener noreferrer">
+          <span class="pe-springboard__icon" aria-hidden="true">
+            <i class="bi bi-trophy"/>
+          </span>
+          <span class="pe-springboard__copy">
+            <span class="pe-springboard__kicker">Öffnet in neuem Tab</span>
+            <h2 class="pe-springboard__title">{{ resultsLabel(link.first_program) }}</h2>
+          </span>
+          <span class="pe-springboard__go" aria-hidden="true">
+            <i class="bi bi-box-arrow-up-right"/>
+          </span>
+        </a>
       </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
@@ -998,39 +982,6 @@ onMounted(async () => {
   line-height: 1.2;
 }
 
-.pe-results {
-  list-style: none;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.pe-results li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.pe-results span {
-  color: var(--color-text-muted);
-}
-
-.pe-results__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 1rem;
-}
-
-.pe-results__external {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  text-decoration: none;
-}
-
 .pe-section {
   padding: 1.25rem 1.25rem 1.4rem !important;
 }
@@ -1066,6 +1017,10 @@ onMounted(async () => {
   transition:
     transform 0.18s ease,
     filter 0.18s ease;
+}
+
+.pe-springboard--plain {
+  text-decoration: none;
 }
 
 .pe-springboard::after {
@@ -1264,6 +1219,10 @@ onMounted(async () => {
 
   .pe-springboard__copy {
     padding-right: min(42%, 14.5rem);
+  }
+
+  .pe-springboard--plain .pe-springboard__copy {
+    padding-right: 0;
   }
 
   .pe-springboard__go {

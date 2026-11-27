@@ -16,6 +16,17 @@ const categoryLabels: Record<string, string> = {
   core_values: 'Grundwerte',
 }
 
+const tabs = computed(() => [
+  ...(props.embedded ? [{id: 'back', label: 'Zurück', icon: 'bi-chevron-left'}] : []),
+  {id: 'gesamt', label: 'Gesamtergebnis'},
+  {id: 'spiel', label: 'Spiel'},
+])
+
+function selectTab(id: string | number) {
+  if (id === 'back') emit('exit')
+  else tab.value = id as 'gesamt' | 'spiel'
+}
+
 const awards = computed(() => results.value?.awards || null)
 const game = computed(() => results.value?.game || {rounds: [], teams: []})
 
@@ -61,24 +72,20 @@ function formatPoints(value: number | null) {
         <p class="scor-public__kicker">Ergebnisse</p>
         <h1>{{ title || results?.event?.name || 'Ergebnisse' }}</h1>
       </div>
-      <button v-if="embedded" type="button" class="glass-btn-secondary" @click="emit('exit')">
-        Zurück zur öffentlichen Seite
-      </button>
     </header>
+
+    <PageTabs
+        fill
+        aria-label="Ergebnisse"
+        :tabs="tabs"
+        :model-value="tab"
+        @update:model-value="selectTab"
+    />
 
     <p v-if="error" class="scor-public__state">{{ error }}</p>
     <p v-else-if="!results" class="scor-public__state">Wird geladen …</p>
 
     <template v-else>
-      <PageTabs
-          aria-label="Ergebnisse"
-          :tabs="[
-            {id: 'gesamt', label: 'Gesamtergebnis'},
-            {id: 'spiel', label: 'Spiel'},
-          ]"
-          :model-value="tab"
-          @update:model-value="tab = $event"
-      />
 
       <section v-if="tab === 'gesamt'" class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
         <h2>Auszeichnungen</h2>
@@ -137,7 +144,6 @@ function formatPoints(value: number | null) {
             </p>
           </article>
         </div>
-        <p class="scor-public__muted">Nominierte Teams stehen nach Teamnummer.</p>
       </section>
 
       <section v-else class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
@@ -173,10 +179,6 @@ function formatPoints(value: number | null) {
             </tbody>
           </table>
         </div>
-        <p class="scor-public__muted">
-          Der Platz folgt dem Punktedurchschnitt aller Wertungsrunden. Eine fehlende Runde zählt als 0.
-          Hervorgehoben ist das höchste Ergebnis jeder Runde.
-        </p>
       </section>
     </template>
   </div>
