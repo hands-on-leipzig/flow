@@ -216,6 +216,8 @@ class CarouselController extends Controller
             $slide['name'] = "Zeitplan - Nächstes Event";
         } else if ($type === 'RobotGameSlideContent') {
             $slide['name'] = 'Robot-Game-Ergebnisse';
+        } else if ($type === 'FutureGameSlideContent') {
+            $slide['name'] = 'Spiel-Ergebnisse';
         } else if ($type === 'UrlSlideContent') {
             $slide['name'] = 'Externer Inhalt';
         } else if ($type === 'FabricSlideContent') {

@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FirstProgram as ProgramEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\FirstProgram;
+use App\Scor\ScorAccessException;
+use App\Scor\ScorPublicGame;
 use App\Services\CheckInService;
 use App\Services\CockpitService;
 use App\Services\CockpitStagePresentationService;
 use App\Services\CockpitTimeShiftService;
 use App\Services\EventTitleService;
 use App\Services\SeasonService;
+use App\Support\ProgramCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 
 class CockpitController extends Controller
@@ -23,6 +29,7 @@ class CockpitController extends Controller
         private CockpitTimeShiftService $timeShift,
         private CockpitStagePresentationService $stagePresentations,
         private EventTitleService $eventTitles,
+        private ScorPublicGame $publicGame,
     ) {}
 
     public function getSettings(Event $event): JsonResponse
@@ -110,6 +117,46 @@ class CockpitController extends Controller
         return $this->contao->saveRoundsToShow($request, $event->id);
     }
 
+    /**
+     * Programs with a results page in the Cockpit: Challenge (HOT rounds) and Future 8+ (SCOR rounds).
+     */
+    public function results(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+        $programs = DB::table('event_program')->where('event', $event->id)->pluck('first_program')->map(fn ($id) => (int) $id)->all();
+
+        $section = function (ProgramEnum $program): array {
+            $row = FirstProgram::find($program->value);
+
+            return [
+                'program_label' => ProgramCatalog::officialNameHtml($program->value, (string) ($row->name ?? '')),
+                'logo_stem' => $row->logo_stem ?? null,
+            ];
+        };
+
+        return response()->json([
+            'challenge' => in_array(ProgramEnum::CHALLENGE->value, $programs, true) ? $section(ProgramEnum::CHALLENGE) : null,
+            'future' => in_array(ProgramEnum::FUTURE_8->value, $programs, true)
+                ? $section(ProgramEnum::FUTURE_8) + $this->scorRespond(fn () => $this->publicGame->rounds($event->id))
+                : null,
+        ]);
+    }
+
+    public function saveGameRounds(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+        $data = $request->validate([
+            'rounds' => ['present', 'array'],
+            'rounds.*' => ['integer', 'min:1'],
+        ]);
+
+        try {
+            return response()->json($this->publicGame->saveRounds($event->id, $data['rounds']));
+        } catch (ScorAccessException $e) {
+            return response()->json(['error' => $e->getMessage()], $e->status);
+        }
+    }
+
     public function organizerContact(Request $request, string $slug): JsonResponse
     {
         $event = $this->authorizedEvent($request, $slug);
@@ -194,6 +241,18 @@ class CockpitController extends Controller
         return response()->json(
             $this->stagePresentations->setLock($event, $data['program'], (bool) $data['locked'])
         );
+    }
+
+    /**
+     * @return array{rounds: list<array<string, mixed>>}
+     */
+    private function scorRespond(\Closure $callback): array
+    {
+        try {
+            return $callback();
+        } catch (ScorAccessException) {
+            return ['rounds' => []];
+        }
     }
 
     private function eventBySlug(string $slug): Event

@@ -398,7 +398,8 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
           </p>
         </section>
 
-        <section v-if="slide.type === 'RobotGameSlideContent'" class="se-section">
+        <section v-if="slide.type === 'RobotGameSlideContent' || slide.type === 'FutureGameSlideContent'"
+                 class="se-section">
           <h3 class="se-section__title">Tabelle</h3>
           <div class="flex items-center justify-between gap-2">
             <span class="se-label">Teams pro Seite</span>
@@ -412,7 +413,8 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
           </div>
           <ColorField label="Textfarbe" :model-value="slide.content.textColor"
                       @update:model-value="updateByName('textColor', $event || '#222222')"/>
-          <ColorField label="Hervorhebung" :model-value="slide.content.highlightColor"
+          <ColorField v-if="slide.type === 'RobotGameSlideContent'" label="Hervorhebung"
+                      :model-value="slide.content.highlightColor"
                       @update:model-value="updateByName('highlightColor', $event || '#FFD700')"/>
           <ColorField label="Rahmenfarbe" :model-value="slide.content.tableBorderColor"
                       @update:model-value="updateByName('tableBorderColor', $event || '#000000')"/>

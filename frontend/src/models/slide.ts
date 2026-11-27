@@ -1,6 +1,7 @@
 import {SlideContent} from "./slideContent";
 import {ImageSlideContent} from "./imageSlideContent";
 import {RobotGameSlideContent} from "./robotGameSlideContent";
+import {FutureGameSlideContent} from "./futureGameSlideContent";
 import {UrlSlideContent} from "./urlSlideContent";
 import {FabricSlideContent} from "./fabricSlideContent";
 import {PublicPlanSlideContent} from './publicPlanSlideContent';
@@ -41,6 +42,8 @@ export class Slide {
                 return new ImageSlideContent(content);
             case "RobotGameSlideContent":
                 return new RobotGameSlideContent(content);
+            case "FutureGameSlideContent":
+                return new FutureGameSlideContent(content);
             case "UrlSlideContent":
                 return new UrlSlideContent(content);
             case "FabricSlideContent":

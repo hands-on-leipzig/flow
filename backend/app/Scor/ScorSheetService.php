@@ -258,6 +258,29 @@ final class ScorSheetService
     }
 
     /**
+     * Scoring rounds of the Future match plan. The test round stays out.
+     *
+     * @return list<array{round: int, label: string}>
+     */
+    public function scoringRounds(int $eventId): array
+    {
+        $planId = $this->planId($eventId);
+        if (!$planId) {
+            return [];
+        }
+
+        return DB::table('match')
+            ->where('plan', $planId)
+            ->where('first_program', FirstProgram::FUTURE_8->value)
+            ->where('round', '>', 0)
+            ->distinct()
+            ->orderBy('round')
+            ->pluck('round')
+            ->map(fn ($round) => ['round' => (int) $round, 'label' => 'Runde '.(int) $round])
+            ->all();
+    }
+
+    /**
      * Recompute stored referee points with the current rules.
      *
      * @return int sheets whose points changed

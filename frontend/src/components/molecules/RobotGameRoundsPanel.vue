@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import axios, {type AxiosInstance} from 'axios'
 import {useEventStore} from '@/stores/event'
+import RoundToggle from '@/components/atoms/RoundToggle.vue'
 
 type RobotGamePublicRounds = {
   vr1: boolean;
@@ -103,51 +104,20 @@ onMounted(fetchRounds)
     <div v-if="loading" class="py-8 text-center text-sm text-[var(--color-text-subtle)]">Laden…</div>
 
     <div v-else-if="rounds" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      <button
+      <RoundToggle
           v-for="round in roundOptions"
           :key="round.key"
-          type="button"
+          :on="rounds[round.key]"
+          :busy="saving === round.key"
           :disabled="saving !== null"
-          @click="toggleRound(round.key)"
-          :class="[
-            'round-toggle',
-            rounds[round.key] ? 'round-toggle--on' : 'glass-btn-secondary',
-            saving === round.key ? 'opacity-70' : '',
-          ]"
+          @toggle="toggleRound(round.key)"
       >
         {{ round.label }}
-      </button>
+      </RoundToggle>
     </div>
+
+    <p v-else class="text-sm text-[var(--color-text-muted)]">
+      Runden aus HOT konnten nicht geladen werden.
+    </p>
   </section>
 </template>
-
-<style scoped>
-.round-toggle {
-  min-height: 3rem;
-  border-radius: var(--radius);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.round-toggle--on {
-  border: 1px solid color-mix(in srgb, #000 12%, #16a34a);
-  color: #fff;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, #fff 14%, #16a34a) 0%,
-    #16a34a 55%,
-    #15803d 100%
-  );
-  box-shadow:
-    0 0 0 transparent,
-    0 1px 1px rgba(15, 23, 42, 0.12),
-    inset 0 3px 7px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(0, 0, 0, 0.14);
-  transform: translateY(1px) scale(0.99);
-}
-
-.round-toggle--on:active:not(:disabled) {
-  transform: translateY(2px) scale(0.985);
-}
-</style>
