@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Scor\ScorAccessException;
 use App\Scor\ScorLocalAccounts;
+use App\Scor\ScorMockData;
 use App\Scor\ScorPractice;
 use App\Scor\ScorSheetService;
 use App\Support\ScorGrant;
@@ -133,6 +134,11 @@ class ScorController extends Controller
     public function reopenEvent(Request $request, int $eventId): JsonResponse
     {
         return $this->respond(fn () => $this->sheets->reopenEvent($request->user(), $eventId));
+    }
+
+    public function mockData(Request $request, int $eventId, ScorMockData $mock): JsonResponse
+    {
+        return $this->respond(fn () => $mock->fill($request->user(), $eventId));
     }
 
     public function sendResults(Request $request, int $eventId): JsonResponse

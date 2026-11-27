@@ -240,6 +240,33 @@ class ScorSheetServiceTest extends TestCase
         $this->assertNull(DB::table('scor_event')->where('event', 1)->value('released_at'));
     }
 
+    public function test_mock_data_fills_and_confirms_every_sheet_and_clears_awards(): void
+    {
+        $this->seedContaoRanking();
+        $this->createAwardTable();
+        DB::table('scor_award')->insert(['event' => 1, 'team' => 1, 'category' => 'coaching', 'kind' => 'trophy']);
+
+        $filled = app(\App\Scor\ScorMockData::class)->fill($this->user(), 1);
+
+        $this->assertSame(['referee' => 7, 'jury' => 3], $filled);
+        $this->assertSame(7, DB::table('scor_sheet')->where('kind', 'referee')->where('confirmed_referee', true)->where('confirmed_team', true)->count());
+        $this->assertSame(3, DB::table('scor_sheet')->where('kind', 'jury')->where('completed', true)->count());
+        $this->assertGreaterThan(0, DB::table('scor_sheet')->where('kind', 'referee')->sum('points'));
+        $this->assertGreaterThan(0, DB::table('scor_sheet')->where('kind', 'jury')->sum('points'));
+        $this->assertSame(0, DB::table('scor_award')->count());
+        $this->assertTrue($this->sheets->overview($this->user(), 1)['mock_data']);
+        $this->assertCount(3, $this->sheets->results($this->user(), 1)['teams']);
+    }
+
+    public function test_mock_data_needs_the_event_admin(): void
+    {
+        DB::table('event_user_access')->where('user', 1)->update(['can_scor_admin' => false]);
+
+        $this->assertFalse($this->sheets->overview($this->user(), 1)['mock_data']);
+        $this->expectException(\App\Scor\ScorAccessException::class);
+        app(\App\Scor\ScorMockData::class)->fill($this->user(), 1);
+    }
+
     public function test_playground_reset_clears_sheets_the_day_before(): void
     {
         Schema::create('scor_event', function (Blueprint $table) {
@@ -399,6 +426,83 @@ class ScorSheetServiceTest extends TestCase
             }
         }
         $this->assertSame(4, $opponentRetreat);
+    }
+
+    public function test_gracious_points_skip_the_game_and_add_to_core_values(): void
+    {
+        $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $items = collect($sheet['sections'])->flatMap(fn ($section) => $section['items'])->keyBy('label');
+        $gracious = collect($sheet['sections'])->firstWhere('title', 'Freundliches Miteinander');
+        $this->assertTrue($gracious['core_values']);
+        $this->assertFalse($sheet['sections'][0]['core_values']);
+
+        $saved = $this->sheets->saveReferee($this->user(), 1, 1, 1, [
+            'values' => [
+                $items['Zählerstand am Matchende']['id'] => 10,
+                $items['Bewertung für dieses Match']['id'] => 3,
+            ],
+        ]);
+        $this->assertSame(50, $saved['points']);
+        $this->assertSame(50, (int) DB::table('scor_sheet')->where('kind', 'referee')->where('team', 1)->value('points'));
+
+        $team = collect($this->sheets->results($this->user(), 1)['teams'])->firstWhere('id', 1);
+        $this->assertSame(50, $team['rounds'][0]['points']);
+        $this->assertSame(4, $team['core_values']);
+    }
+
+    public function test_queen_bonus_waits_for_three_in_the_young_forest(): void
+    {
+        $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $items = collect($sheet['sections'])->flatMap(fn ($section) => $section['items'])->keyBy('label');
+
+        $this->assertSame(
+            ['item' => $items['Schlüsselarten im jungen Wald']['id'], 'min' => 3],
+            $items['Bonus invasive Königin']['requires'],
+        );
+        $this->assertNull($items['Schlüsselarten im großen Baum']['requires']);
+        $this->assertTrue($items['Schlüsselarten im jungen Wald']['config']['open_max']);
+        $this->assertSame(12, $items['Invasive Arten in der Eindämmungszone']['config']['max']);
+    }
+
+    public function test_existing_referee_form_gets_three_plus_and_twelve_without_new_ids(): void
+    {
+        $formId = app(ScorFormStore::class)->formId(1, 'referee');
+        $old = \App\Scor\FutureRefereeCatalog::sections();
+        foreach ($old as &$section) {
+            foreach ($section['items'] as &$item) {
+                unset($item['config']['open_max']);
+                if ($item['label'] === 'Invasive Arten in der Eindämmungszone') {
+                    $item['config']['max'] = 6;
+                }
+            }
+        }
+        unset($section, $item);
+        app(ScorFormStore::class)->replace($formId, $old);
+        $before = collect(app(ScorFormStore::class)->itemsFor($formId))->pluck('id', 'label');
+
+        $items = collect(app(ScorFormStore::class)->itemsFor(app(ScorFormStore::class)->formId(1, 'referee')))->keyBy('label');
+
+        $this->assertSame($before->all(), $items->map(fn ($item) => $item->id)->all());
+        $this->assertTrue(json_decode($items['Schlüsselarten im jungen Wald']->config, true)['open_max']);
+        $this->assertSame(12, json_decode($items['Invasive Arten in der Eindämmungszone']->config, true)['max']);
+        $this->assertArrayNotHasKey('open_max', json_decode($items['Hinzugefügte invasive Arten']->config, true));
+    }
+
+    public function test_refresh_takes_gracious_out_of_stored_referee_points(): void
+    {
+        $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $items = collect($sheet['sections'])->flatMap(fn ($section) => $section['items'])->keyBy('label');
+        $this->sheets->saveReferee($this->user(), 1, 1, 1, [
+            'values' => [
+                $items['Zählerstand am Matchende']['id'] => 10,
+                $items['Bewertung für dieses Match']['id'] => 2,
+            ],
+        ]);
+        DB::table('scor_sheet')->where('kind', 'referee')->update(['points' => 53]);
+
+        $this->assertSame(1, $this->sheets->refreshRefereePoints());
+        $this->assertSame(50, (int) DB::table('scor_sheet')->where('kind', 'referee')->value('points'));
+        $this->assertSame(0, $this->sheets->refreshRefereePoints());
     }
 
     public function test_untouched_count_is_zero_and_does_not_block_confirm(): void

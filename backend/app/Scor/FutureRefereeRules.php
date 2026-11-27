@@ -18,6 +18,8 @@ final class FutureRefereeRules
 
     public const GRACIOUS_SECTION = 'Freundliches Miteinander';
 
+    private const QUEEN_BONUS_FOREST = 3;
+
     /**
      * @param  iterable<object>  $items
      * @param  array{values: array<string, mixed>}  $answers
@@ -25,12 +27,14 @@ final class FutureRefereeRules
     public static function assertLegal(iterable $items, array $answers): void
     {
         $bonus = self::raw($items, self::QUEEN_BONUS, $answers);
-        if ($bonus === 'yes' && self::intValue($items, self::YOUNG_FOREST, $answers) < 3) {
+        if ($bonus === 'yes' && self::intValue($items, self::YOUNG_FOREST, $answers) < self::QUEEN_BONUS_FOREST) {
             throw new ScorAccessException('Der Bonus invasive Königin gilt erst ab 3 Schlüsselarten im jungen Wald.', 422);
         }
     }
 
     /**
+     * Game points. Freundliches Miteinander stays out: it counts toward Grundwerte, not the match.
+     *
      * @param  iterable<object>  $items
      * @param  array{values: array<string, mixed>}  $answers
      */
@@ -40,7 +44,40 @@ final class FutureRefereeRules
             return 0;
         }
 
-        return $points;
+        return $points - self::graciousPoints($items, $answers);
+    }
+
+    /**
+     * @param  iterable<object>  $items
+     * @param  array{values: array<string, mixed>}  $answers
+     */
+    public static function graciousPoints(iterable $items, array $answers): int
+    {
+        $item = self::graciousItem($items);
+        $raw = $item ? ($answers['values'][(string) $item->id] ?? null) : null;
+        if (!is_numeric($raw)) {
+            return 0;
+        }
+        $option = self::config($item)['options'][(int) $raw] ?? null;
+
+        return is_array($option) ? (int) ($option['points'] ?? 0) : 0;
+    }
+
+    /**
+     * Rows that only open once another row reaches a minimum.
+     *
+     * @param  iterable<object>  $items
+     * @return array<int, array{item: int, min: int}>
+     */
+    public static function requirements(iterable $items): array
+    {
+        $bonus = self::find($items, self::QUEEN_BONUS);
+        $forest = self::find($items, self::YOUNG_FOREST);
+        if (!$bonus || !$forest) {
+            return [];
+        }
+
+        return [(int) $bonus->id => ['item' => (int) $forest->id, 'min' => self::QUEEN_BONUS_FOREST]];
     }
 
     /**
@@ -102,11 +139,7 @@ final class FutureRefereeRules
         if ($item === null || !is_numeric($raw)) {
             return false;
         }
-        $config = json_decode((string) ($item->config ?? ''), true);
-        if (!is_array($config)) {
-            $config = is_array($item->config ?? null) ? $item->config : [];
-        }
-        $option = $config['options'][(int) $raw] ?? null;
+        $option = self::config($item)['options'][(int) $raw] ?? null;
         if (!is_array($option)) {
             return false;
         }
@@ -115,6 +148,19 @@ final class FutureRefereeRules
         }
 
         return in_array((string) ($option['label'] ?? ''), ['Dritte', '3 oder mehr'], true);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function config(object $item): array
+    {
+        if (is_array($item->config ?? null)) {
+            return $item->config;
+        }
+        $config = json_decode((string) ($item->config ?? ''), true);
+
+        return is_array($config) ? $config : [];
     }
 
     /**
