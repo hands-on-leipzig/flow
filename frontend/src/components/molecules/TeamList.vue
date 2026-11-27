@@ -6,7 +6,6 @@ import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import TeamsSyncTables from '@/components/teams/TeamsSyncTables.vue'
-import {showGlassToast} from '@/composables/useGlassToast'
 import {drahtIdFor, programDisplayName, programMatchesSlug} from '@/utils/eventPrograms'
 import {hasSyncWork, mergeTeams, visibleDrahtTeams} from '@/utils/teamSync'
 import {
@@ -37,7 +36,6 @@ const juryLaneByPlanSlot = ref({})
 const savingToast = ref(null)
 
 const peopleData = ref({})
-const expandedTeams = ref(new Set())
 
 const planParams = ref({
   c_teams: 0,
@@ -182,18 +180,6 @@ function getCoachNames(team) {
     .filter(Boolean)
 }
 
-function toggleTeamExpansion(team) {
-  const teamNumber = getDrahtTeamNumber(team)
-  if (!teamNumber) return
-  if (expandedTeams.value.has(teamNumber)) expandedTeams.value.delete(teamNumber)
-  else expandedTeams.value.add(teamNumber)
-}
-
-function isTeamExpanded(team) {
-  const teamNumber = getDrahtTeamNumber(team)
-  return teamNumber && expandedTeams.value.has(teamNumber)
-}
-
 async function reloadPeople() {
   const drahtEventId = drahtIdFor(event.value, props.program)
   if (!drahtEventId) return
@@ -205,21 +191,6 @@ async function reloadPeople() {
     }
   } catch (peopleErr) {
     if (import.meta.env.DEV) console.error('Failed to fetch people data', peopleErr)
-  }
-}
-
-function formatBirthday(timestamp) {
-  if (!timestamp || timestamp === false) return 'N/A'
-  return new Date(timestamp * 1000).toLocaleDateString('de-DE')
-}
-
-async function copyToClipboard(text, type) {
-  if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    showGlassToast(`${type} kopiert!`, 'success')
-  } catch {
-    showGlassToast('Zwischenablage nicht verfügbar', 'error')
   }
 }
 
@@ -308,17 +279,10 @@ onMounted(async () => {
         :get-coach-count="getCoachCount"
         :get-member-count="getMemberCount"
         :get-coach-names="getCoachNames"
-        :get-team-people-data="getTeamPeopleData"
-        :is-team-expanded="isTeamExpanded"
         :get-team-border-style="getTeamBorderStyle"
         :get-team-group="getTeamGroup"
-        :format-birthday="formatBirthday"
-        :event-id="event?.id ?? null"
         @sort="onSort"
-        @players-saved="reloadPeople"
         @update-noshow="updateTeamNoshow"
-        @toggle="toggleTeamExpansion"
-        @copy="copyToClipboard"
     />
   </div>
 </template>
