@@ -82,6 +82,32 @@ class NoticeApiTest extends TestCase
         $this->assertTrue($payload['dots']['teams_by_program']['explore']);
     }
 
+    public function test_teams_notice_on_teamdaten_screen_jumps_to_teamdaten(): void
+    {
+        DB::table('m_help_screen')->insert(
+            ['id' => 2, 'key' => 'teams-data', 'name' => 'Teamdaten', 'route_path' => '/plan/teams/data', 'sort_order' => 2],
+        );
+        DB::table('m_notice')->where('key', 'teams_discrepancy')->update(['help_screen' => 2]);
+        $this->seedEvent(date: '2026-11-20', programs: [
+            ['id' => 1, 'name' => 'EXPLORE', 'display_name' => 'Explore'],
+        ]);
+        $this->mockDraht([
+            [
+                'first_program' => 1,
+                'name' => 'EXPLORE',
+                'teams' => [['ref' => '10', 'name' => 'Draht Explore']],
+            ],
+        ]);
+
+        $payload = $this->getJson('/api/events/1/notices')->assertOk()->json();
+        $teams = collect($payload['messages'])->where('key', 'teams_discrepancy')->values();
+
+        $this->assertCount(1, $teams);
+        $this->assertSame('teams-data', $teams[0]['screen_key']);
+        $this->assertSame('/plan/teams/data', $teams[0]['jump_path']);
+        $this->assertSame('explore', $teams[0]['program']);
+    }
+
     public function test_no_plan_turns_schedule_off_and_rooms_on(): void
     {
         $this->seedEvent(date: '2026-11-20', withPlan: false);

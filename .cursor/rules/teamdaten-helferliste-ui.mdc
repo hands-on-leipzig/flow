@@ -11,7 +11,7 @@ When changing data-collection grids, treat **Helferliste** as the model unless n
 ## Decided
 
 - **Page chrome**: Teamdaten uses `VolunteerStaffingFilterBar` (leading / middle / trailing); publish toolbar uses `vol-roster-toolbar--solo`.
-- **Sorting**: Teamdaten sorts Nr, Teamname, Organisation (same `vol-sort` header UX as Helferliste).
+- **Sorting**: Teamdaten sorts Programm, Nr, Teamname, Organisation across programs (same `vol-sort` header UX as Helferliste). No program sections; with more than one program each row carries a colored program label.
 - **Table cell editors / save rules**: Helferliste as model (text trim; shared field chrome in `volunteers.css`).
 - **Search casing**: `toLowerCase()` like roster haystack; Teamdaten fields stay name/org/nr.
 - **Shared CSS**: Sticky/detail/tristate field chrome lives in `volunteers.css`.

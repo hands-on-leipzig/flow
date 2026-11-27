@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
+import PageTabs from '@hands-on/glass/page-tabs'
 
 const props = defineProps<{eventId: string | number, payload?: any, title?: string, embedded?: boolean}>()
 const emit = defineEmits<{exit: []}>()
@@ -69,28 +70,15 @@ function formatPoints(value: number | null) {
     <p v-else-if="!results" class="scor-public__state">Wird geladen …</p>
 
     <template v-else>
-      <div class="glass-segment scor-public__tabs" role="tablist" aria-label="Ergebnisse">
-        <button
-            type="button"
-            role="tab"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': tab === 'gesamt'}"
-            :aria-selected="tab === 'gesamt'"
-            @click="tab = 'gesamt'"
-        >
-          Gesamtergebnis
-        </button>
-        <button
-            type="button"
-            role="tab"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': tab === 'spiel'}"
-            :aria-selected="tab === 'spiel'"
-            @click="tab = 'spiel'"
-        >
-          Spiel
-        </button>
-      </div>
+      <PageTabs
+          aria-label="Ergebnisse"
+          :tabs="[
+            {id: 'gesamt', label: 'Gesamtergebnis'},
+            {id: 'spiel', label: 'Spiel'},
+          ]"
+          :model-value="tab"
+          @update:model-value="tab = $event"
+      />
 
       <section v-if="tab === 'gesamt'" class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
         <h2>Auszeichnungen</h2>
@@ -234,10 +222,6 @@ function formatPoints(value: number | null) {
 
 .scor-public__state {
   font-size: 1.1rem;
-}
-
-.scor-public__tabs {
-  align-self: flex-start;
 }
 
 .scor-public__section {

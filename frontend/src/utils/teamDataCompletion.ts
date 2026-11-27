@@ -16,9 +16,6 @@ export type TeamDataRow = {
   location?: string | null
   team_number_hot: number | null
   team_number_plan: number | null
-  plan_number?: number | null
-  noshow?: boolean
-  jury_label?: string
   first_program: number | null
   program_label: string
   people_count: number | null
