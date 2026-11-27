@@ -17,21 +17,14 @@ const props = defineProps({
   getCoachCount: {type: Function, required: true},
   getMemberCount: {type: Function, required: true},
   getCoachNames: {type: Function, required: true},
-  getTeamPeopleData: {type: Function, required: true},
-  isTeamExpanded: {type: Function, required: true},
   getTeamBorderStyle: {type: Function, required: true},
   getTeamGroup: {type: Function, required: true},
-  formatBirthday: {type: Function, required: true},
-  eventId: {type: Number, default: null},
 })
 
 const emit = defineEmits([
   'update:teamList',
   'sort',
   'update-noshow',
-  'toggle',
-  'copy',
-  'players-saved',
 ])
 
 const visibleRemote = computed(() => visibleDrahtTeams(props.remoteTeams as Record<string, unknown>[]))
@@ -106,14 +99,7 @@ function updateTeamList(value: unknown[]) {
               :coach-count="getCoachCount(team)"
               :member-count="getMemberCount(team)"
               :coach-names="getCoachNames(team)"
-              :expanded="isTeamExpanded(team)"
-              :people-data="getTeamPeopleData(team)"
-              :format-birthday="formatBirthday"
-              :event-id="eventId"
-              @toggle="emit('toggle', team)"
-              @players-saved="emit('players-saved')"
               @update-noshow="emit('update-noshow', $event)"
-              @copy="(text, label) => emit('copy', text, label)"
           />
         </div>
       </template>
@@ -138,7 +124,6 @@ function updateTeamList(value: unknown[]) {
             <span class="text-sm text-center">–</span>
             <span class="text-sm text-center">–</span>
             <span class="text-sm text-center font-semibold">–</span>
-            <span/>
           </div>
           <span/>
         </div>
@@ -160,7 +145,6 @@ function updateTeamList(value: unknown[]) {
     3.25rem
     3.25rem
     3.25rem
-    1.5rem
     4.5rem;
   gap: 0.35rem 0.5rem;
   align-items: center;
@@ -178,11 +162,14 @@ function updateTeamList(value: unknown[]) {
     3.25rem
     3.25rem
     3.25rem
-    1.5rem
     4.5rem;
 }
 
 .teams-sync-tables :deep(.team-row__people-zone--placeholder) {
+  grid-column: span 3;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
   pointer-events: none;
 }
 

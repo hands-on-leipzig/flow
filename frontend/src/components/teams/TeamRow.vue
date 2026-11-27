@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
-import TeamPlayersEditor from '@/components/teams/TeamPlayersEditor.vue'
 import {formatJuryCell, juryCellAriaLabel} from '@/utils/teamJury'
 
 const props = defineProps({
@@ -19,16 +18,10 @@ const props = defineProps({
   coachCount: {type: Number, default: null},
   memberCount: {type: Number, default: null},
   coachNames: {type: Array, default: () => []},
-  expanded: {type: Boolean, default: false},
-  peopleData: {type: Object, default: null},
-  formatBirthday: {type: Function, required: true},
   syncChangeLabel: {type: String, default: ''},
-  eventId: {type: Number, default: null},
 })
 
-const emit = defineEmits(['toggle', 'update-noshow', 'copy', 'players-saved'])
-
-const canEditMembers = computed(() => !isPending() && props.eventId != null && props.team?.id != null)
+const emit = defineEmits(['update-noshow'])
 
 const isPending = () => props.variant === 'pending'
 const beyondCapacity = () => props.teamsBeyondCapacity && props.index >= props.planCapacity
@@ -58,10 +51,6 @@ function pendingTeamNumber(team: Record<string, unknown>): string {
   if (num == null || num === '') return '–'
   return String(num).padStart(4, '0')
 }
-
-function onCopy(text: string, label: string) {
-  emit('copy', text, label)
-}
 </script>
 
 <template>
@@ -74,7 +63,6 @@ function onCopy(text: string, label: string) {
         isPending()
           ? 'text-[var(--color-text-muted)]'
           : [
-              'cursor-pointer',
               !isTagged && beyondCapacity()
                 ? 'bg-amber-50 text-amber-950 border-amber-200'
                 : !isTagged ? 'bg-white/90 text-[var(--color-text)] border-[var(--color-border)]' : '',
@@ -84,7 +72,6 @@ function onCopy(text: string, label: string) {
             ],
       ]"
       :style="!isPending() && !beyondCapacity() && !isTagged ? borderStyle : ''"
-      @click="!isPending() && emit('toggle')"
   >
     <div class="team-row__grid">
       <template v-if="!showChangeLabel">
@@ -165,7 +152,6 @@ function onCopy(text: string, label: string) {
       <div
           v-if="!isPending()"
           class="team-row__people-zone"
-          :class="{'team-row__people-zone--expanded': expanded}"
       >
         <span
             class="team-row__coach-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
@@ -188,10 +174,6 @@ function onCopy(text: string, label: string) {
             :aria-label="peopleTotal != null ? `${peopleTotal} Personen gesamt` : undefined"
         >
           {{ peopleTotal ?? '–' }}
-        </span>
-
-        <span class="team-row__expand text-[var(--color-text-muted)] text-sm justify-self-end">
-          {{ expanded ? '▼' : '▶' }}
         </span>
       </div>
       <template v-else>
@@ -216,7 +198,6 @@ function onCopy(text: string, label: string) {
         </span>
 
         <span class="team-row__people-total"/>
-        <span class="team-row__expand"/>
       </template>
 
       <template v-if="!isPending()">
@@ -237,83 +218,6 @@ function onCopy(text: string, label: string) {
       </template>
       <span v-else/>
     </div>
-
-    <div
-        v-if="!isPending() && expanded && peopleData"
-        class="ml-8 mb-2 mt-2 bg-[var(--color-bg-muted)] rounded p-3"
-        @click.stop
-    >
-      <div v-if="peopleData.coaches?.length" class="mb-3">
-        <div class="text-xs font-semibold text-[var(--color-text-muted)] mb-1">
-          Coaches ({{ peopleData.num_coaches || 0 }}):
-        </div>
-        <div class="space-y-1">
-          <div
-              v-for="(coach, coachIndex) in peopleData.coaches"
-              :key="coachIndex"
-              class="text-sm text-[var(--color-text-muted)]"
-          >
-            <template v-if="typeof coach === 'object' && coach !== null">
-              <div class="flex flex-col">
-                <span class="font-medium">
-                  {{ coach.firstname || 'Unbekannt' }} {{ coach.name || 'Unbekannt' }}
-                </span>
-                <div v-if="coach.email || coach.phone" class="text-xs text-[var(--color-text-subtle)] ml-2 flex flex-wrap gap-2">
-                  <a
-                      v-if="coach.email"
-                      class="hover:underline"
-                      :href="`mailto:${coach.email}`"
-                      @click.stop
-                  >
-                    {{ coach.email }}
-                  </a>
-                  <button
-                      v-if="coach.phone"
-                      type="button"
-                      class="hover:underline"
-                      @click="onCopy(coach.phone, 'Telefon')"
-                  >
-                    {{ coach.phone }}
-                  </button>
-                </div>
-              </div>
-            </template>
-            <template v-else>{{ coach || 'Unbekannt' }}</template>
-          </div>
-        </div>
-      </div>
-      <div v-else class="text-sm text-[var(--color-text-subtle)] italic mb-3">Keine Coaches gefunden</div>
-
-      <div>
-        <div class="text-xs font-semibold text-[var(--color-text-muted)] mb-1">
-          Mitglieder<span v-if="!canEditMembers"> ({{ peopleData.num_players || 0 }})</span>:
-        </div>
-        <TeamPlayersEditor
-            v-if="canEditMembers"
-            :event-id="eventId"
-            :team-id="Number(team.id)"
-            @saved="emit('players-saved')"
-        />
-        <template v-else>
-          <div v-if="peopleData.players?.length" class="space-y-1">
-            <div
-                v-for="(player, playerIndex) in peopleData.players"
-                :key="playerIndex"
-                class="text-sm text-[var(--color-text-muted)]"
-            >
-              <span v-if="player.name || player.firstname">
-                {{ player.firstname || '' }} {{ player.name || '' }}
-                <span class="text-[var(--color-text-subtle)]">
-                  ({{ player.gender || 'N/A' }}, {{ formatBirthday(player.birthday) }})
-                </span>
-              </span>
-              <span v-else class="italic">Unbekanntes Mitglied</span>
-            </div>
-          </div>
-          <div v-else class="text-sm text-[var(--color-text-subtle)] italic">Keine Mitglieder gefunden</div>
-        </template>
-      </div>
-    </div>
   </li>
 </template>
 
@@ -330,7 +234,6 @@ function onCopy(text: string, label: string) {
     3.25rem
     3.25rem
     3.25rem
-    1.5rem
     4.5rem;
   gap: 0.35rem 0.5rem;
   align-items: center;
@@ -348,7 +251,6 @@ function onCopy(text: string, label: string) {
     3.25rem
     3.25rem
     3.25rem
-    1.5rem
     4.5rem;
 }
 
@@ -359,7 +261,7 @@ function onCopy(text: string, label: string) {
 }
 
 .team-row__people-zone {
-  grid-column: span 4;
+  grid-column: span 3;
   display: grid;
   grid-template-columns: subgrid;
   align-items: center;
@@ -367,24 +269,6 @@ function onCopy(text: string, label: string) {
   border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
   background: color-mix(in srgb, var(--color-text) 3.5%, var(--color-bg-muted));
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.team-row__people-zone .team-row__expand {
-  padding-right: 0.45rem;
-}
-
-.team-row:not(.team-row--tagged):hover .team-row__people-zone {
-  border-color: color-mix(in srgb, var(--color-border) 65%, var(--color-text));
-  background: color-mix(in srgb, var(--color-text) 5.5%, var(--color-bg-muted));
-}
-
-.team-row__people-zone--expanded {
-  border-color: color-mix(in srgb, #2563eb 22%, var(--color-border));
-  background: color-mix(in srgb, #2563eb 7%, var(--color-bg-muted));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
-    0 0 0 1px color-mix(in srgb, #2563eb 8%, transparent);
 }
 
 .team-row--has-change-label .team-row__change-label {
