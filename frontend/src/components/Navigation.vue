@@ -11,7 +11,7 @@ import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {imageUrl} from '@/utils/images'
 import AppSwitcher from '@/components/AppSwitcher.vue'
-import {eventPrograms, teamPathFor, firstTeamsPath, hasAfternoon} from '@/utils/eventPrograms'
+import {eventPrograms, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
   ADMIN_SECTIONS,
   ADMIN_OPS_NAV,
@@ -87,7 +87,7 @@ const teamNavChildren = computed<NavChild[]>(() => {
   return [
     {name: 'Teamdaten', path: '/plan/teams/data', icon: 'bi-table'},
     ...(programPaths.length
-      ? [{name: 'Zuordnung', path: programPaths[0], icon: 'bi-diagram-3', alsoPaths: programPaths.slice(1)}]
+      ? [{name: 'Reihenfolge', path: programPaths[0], icon: 'bi-sort-numeric-down', alsoPaths: programPaths.slice(1)}]
       : []),
   ]
 })
@@ -388,11 +388,14 @@ function hasWarning(tabPath: string): boolean {
   const dots = noticeStore.dots
   const path = normalizePlanPath(tabPath)
 
-  // Registration changes are synced on Teamdaten, not on the Zuordnung.
+  // Registration changes are synced on Teamdaten; Reihenfolge flags planned ≠ registered counts.
   if (path === '/plan/teams/data') {
     return Object.values(dots.teams_by_program ?? {}).some(Boolean)
   }
-  if (path.startsWith('/plan/teams')) return false
+  if (path.startsWith('/plan/teams/')) {
+    const slug = path.replace(/^\/plan\/teams\//, '')
+    return !!dots.schedule_counts_by_program?.[programCompact(slug)]
+  }
 
   switch (path) {
     case '/plan/schedule':

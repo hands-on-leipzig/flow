@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Teams shell: Teamdaten plus one Zuordnung page shared by all programs, so its program tabs persist.
+ * Teams shell: Teamdaten plus one Reihenfolge page shared by all programs, so its program chips persist.
  */
 defineOptions({name: 'Teams'})
 </script>

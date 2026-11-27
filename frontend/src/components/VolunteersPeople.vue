@@ -689,14 +689,14 @@ watch(eventId, () => {
         </span>
         <button
             type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': notOnRosterOnly}"
+            class="glass-filter-chip"
+            :class="{'glass-filter-chip--active': notOnRosterOnly}"
             :aria-pressed="notOnRosterOnly"
             title="Nur Personen anzeigen, die noch nicht auf der Helfer:innenliste sind"
             @click="notOnRosterOnly = !notOnRosterOnly"
         >
-          <i class="bi bi-clipboard-check vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Nicht auf Helfer:innenliste</span>
+          <i class="bi bi-clipboard-check glass-filter-chip__icon" aria-hidden="true"/>
+          <span class="glass-filter-chip__label">Nicht auf Helfer:innenliste</span>
         </button>
         <input
             v-model="search"
@@ -708,14 +708,14 @@ watch(eventId, () => {
         >
         <button
             type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': sharedEmailOnly}"
+            class="glass-filter-chip"
+            :class="{'glass-filter-chip--active': sharedEmailOnly}"
             :aria-pressed="sharedEmailOnly"
             title="Nur Personen anzeigen, deren E-Mail mehrfach vorkommt"
             @click="sharedEmailOnly = !sharedEmailOnly"
         >
-          <i class="bi bi-envelope-exclamation vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Mehrfach verwendete E-Mail</span>
+          <i class="bi bi-envelope-exclamation glass-filter-chip__icon" aria-hidden="true"/>
+          <span class="glass-filter-chip__label">Mehrfach verwendete E-Mail</span>
         </button>
         <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
       </div>

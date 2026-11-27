@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * Zuordnung: one program's teams onto the plan slots, with a program switcher on top.
+ * Reihenfolge: one program's teams onto the plan slots, with program chips on top.
  */
 import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import PageTabs from '@hands-on/glass/page-tabs'
 import {useEventStore} from '@/stores/event'
+import {useNoticeStore} from '@/stores/notice'
 import {usePlanCacheStore} from '@/stores/planCache'
 import TeamList from '@/components/molecules/TeamList.vue'
 import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
@@ -13,10 +13,12 @@ import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {
   eventPrograms,
   findProgram,
   firstTeamsPath,
+  programCompact,
   programDisplayName,
   programSlug,
   teamPathFor,
@@ -27,6 +29,7 @@ defineOptions({name: 'TeamsProgram'})
 const route = useRoute()
 const router = useRouter()
 const eventStore = useEventStore()
+const noticeStore = useNoticeStore()
 const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 
@@ -47,20 +50,22 @@ const listVersion = ref(0)
 
 const attachedProgram = computed(() => findProgram(event.value, program.value))
 
-const programTabs = computed(() =>
+const programChips = computed(() =>
   eventPrograms(event.value).map((row) => ({
-    id: programSlug(row.name),
+    slug: programSlug(row.name),
+    program: row,
     label: programDisplayName(row),
+    countMismatch: !!noticeStore.dots.schedule_counts_by_program?.[programCompact(row.name)],
   })),
 )
 
-const activeTab = computed(() =>
+const activeSlug = computed(() =>
   attachedProgram.value ? programSlug(attachedProgram.value.name) : program.value,
 )
 
-function selectProgram(slug: string | number) {
-  const target = eventPrograms(event.value).find((row) => programSlug(row.name) === String(slug))
-  if (target && String(slug) !== activeTab.value) void router.push(teamPathFor(target))
+function selectProgram(slug: string) {
+  const target = eventPrograms(event.value).find((row) => programSlug(row.name) === slug)
+  if (target && slug !== activeSlug.value) void router.push(teamPathFor(target))
 }
 
 function isOnProgramTeamsRoute(): boolean {
@@ -151,20 +156,32 @@ watch(
     <header class="vol-page__header">
       <div>
         <div class="vol-page__title-row">
-          <h1 class="vol-page__title">Zuordnung</h1>
+          <h1 class="vol-page__title">Reihenfolge</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Bitte ordne die Teams per Drag-and-drop den Nummern im Ablauf zu.</p>
+        <p class="vol-page__sub">Festlegen der Reihenfolge der Teams im Ablauf</p>
       </div>
     </header>
 
-    <PageTabs
-        v-if="programTabs.length > 1"
-        aria-label="Programm"
-        :tabs="programTabs"
-        :model-value="activeTab"
-        @update:model-value="selectProgram"
-    />
+    <div v-if="programChips.length > 1" class="teams-program__chips" role="group" aria-label="Programm">
+      <button
+          v-for="chip in programChips"
+          :key="chip.slug"
+          type="button"
+          class="glass-filter-chip"
+          :class="{'glass-filter-chip--active': chip.slug === activeSlug}"
+          :aria-pressed="chip.slug === activeSlug"
+          @click="selectProgram(chip.slug)"
+      >
+        <ProgramLogo :program="chip.program" size="chip" decorative class="glass-filter-chip__logo"/>
+        <span class="glass-filter-chip__label">{{ chip.label }}</span>
+        <span
+            v-if="chip.countMismatch"
+            class="glass-filter-chip__dot"
+            title="Anzahl Teams im Ablauf passt nicht zur Anmeldung"
+        />
+      </button>
+    </div>
 
     <NoticePane/>
 
@@ -199,6 +216,13 @@ watch(
 </template>
 
 <style scoped>
+.teams-program__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .vol-staffing-body--loading {
   display: flex;
   align-items: center;

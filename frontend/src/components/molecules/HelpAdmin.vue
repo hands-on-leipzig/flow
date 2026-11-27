@@ -3,6 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import {RouterLink} from 'vue-router'
 import axios from 'axios'
 import draggable from 'vuedraggable'
+import PageTabs from '@hands-on/glass/page-tabs'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import {apiError} from '@/utils/apiError'
 import {showGlassToast} from '@/composables/useGlassToast'
@@ -383,12 +384,17 @@ onMounted(() => {
   <div class="help-admin">
     <div class="help-admin__top">
       <h2 class="text-xl font-bold">Hilfe</h2>
-      <div class="glass-tabs">
-        <button type="button" class="glass-tab" :class="{'glass-tab--active': tab === 'seiten'}" @click="tab = 'seiten'">Seiten</button>
-        <button type="button" class="glass-tab" :class="{'glass-tab--active': tab === 'aktionen'}" @click="tab = 'aktionen'">Aktionen</button>
-        <button type="button" class="glass-tab" :class="{'glass-tab--active': tab === 'zuordnung'}" @click="tab = 'zuordnung'">Zuordnung</button>
-        <button type="button" class="glass-tab" :class="{'glass-tab--active': tab === 'themen'}" @click="tab = 'themen'">Themen</button>
-      </div>
+      <PageTabs
+          aria-label="Hilfe"
+          :tabs="[
+            {id: 'seiten', label: 'Seiten'},
+            {id: 'aktionen', label: 'Aktionen'},
+            {id: 'zuordnung', label: 'Zuordnung'},
+            {id: 'themen', label: 'Themen'},
+          ]"
+          :model-value="tab"
+          @update:model-value="tab = $event as Tab"
+      />
     </div>
 
     <p v-if="loading" class="text-[var(--color-text-subtle)]">Laden…</p>

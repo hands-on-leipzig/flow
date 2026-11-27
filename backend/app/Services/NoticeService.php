@@ -104,6 +104,7 @@ class NoticeService
      *     teams_by_program: array<string, bool>,
      *     teams_meta: array<string, array{slug: string, display: string, name: string}>,
      *     schedule_counts: bool,
+     *     schedule_counts_by_program: array<string, bool>,
      *     rooms_activities: bool,
      *     rooms_teams: bool,
      *     staffing_below_min: array<string, string>,
@@ -127,11 +128,13 @@ class NoticeService
             ];
             $teamsByProgram[$compact] = $this->programHasDiscrepancy($event, $program, $draht);
         }
+        $countsByProgram = $this->scheduleCountsByProgram($event, $plan, $draht);
 
         return [
             'teams_by_program' => $teamsByProgram,
             'teams_meta' => $teamsMeta,
-            'schedule_counts' => $this->scheduleCountsMismatch($event, $plan, $draht),
+            'schedule_counts' => in_array(true, $countsByProgram, true),
+            'schedule_counts_by_program' => $countsByProgram,
             'rooms_activities' => ! $this->roomsActivitiesOk($plan),
             'rooms_teams' => ! $this->roomsTeamsOk($event, $plan),
             'staffing_below_min' => $this->staffingBelowMinScopes($event),
@@ -149,9 +152,7 @@ class NoticeService
 
         return match ($key) {
             'teams_discrepancy' => $this->teamsMessages($row, $conditions),
-            'schedule_counts' => ($conditions['schedule_counts'] ?? false)
-                ? [$this->singletonMessage($row, hideable: false)]
-                : [],
+            'schedule_counts' => $this->scheduleCountsMessages($row, $conditions),
             'rooms_activities' => ($conditions['rooms_activities'] ?? false)
                 ? [$this->singletonMessage($row, hideable: false)]
                 : [],
@@ -172,11 +173,42 @@ class NoticeService
      */
     private function teamsMessages(MNotice $row, array $conditions): array
     {
+        return $this->perProgramMessages($row, $conditions['teams_by_program'] ?? [], $conditions);
+    }
+
+    /**
+     * One notice per program on the per-program teams screen, else one for the whole event.
+     *
+     * @param  array<string, mixed>  $conditions
+     * @return list<array<string, mixed>>
+     */
+    private function scheduleCountsMessages(MNotice $row, array $conditions): array
+    {
+        if ($this->isPerProgramScreen($row)) {
+            return $this->perProgramMessages($row, $conditions['schedule_counts_by_program'] ?? [], $conditions);
+        }
+
+        return ($conditions['schedule_counts'] ?? false)
+            ? [$this->singletonMessage($row, hideable: false)]
+            : [];
+    }
+
+    private function isPerProgramScreen(MNotice $row): bool
+    {
+        return $row->helpScreen?->route_path === '/plan/teams/:program';
+    }
+
+    /**
+     * @param  array<string, bool>  $byProgram
+     * @param  array<string, mixed>  $conditions
+     * @return list<array<string, mixed>>
+     */
+    private function perProgramMessages(MNotice $row, array $byProgram, array $conditions): array
+    {
         $messages = [];
-        $byProgram = $conditions['teams_by_program'] ?? [];
         $meta = $conditions['teams_meta'] ?? [];
         // Only the per-program screen has a program in its path; any other screen uses its own route.
-        $perProgramScreen = $row->helpScreen?->route_path === '/plan/teams/:program';
+        $perProgramScreen = $this->isPerProgramScreen($row);
 
         foreach ($byProgram as $compact => $on) {
             if (! $on) {
@@ -258,9 +290,11 @@ class NoticeService
     private function dots(Event $event, array $conditions): array
     {
         $teamsByProgram = [];
+        $countsByProgram = [];
         foreach ($event->programs as $program) {
             $compact = $this->programCompact((string) $program->name);
             $teamsByProgram[$compact] = (bool) ($conditions['teams_by_program'][$compact] ?? false);
+            $countsByProgram[$compact] = (bool) ($conditions['schedule_counts_by_program'][$compact] ?? false);
         }
 
         $roomsActivities = (bool) ($conditions['rooms_activities'] ?? false);
@@ -275,6 +309,7 @@ class NoticeService
             'rooms_teams' => $roomsTeams,
             'volunteers_staffing' => $belowMin !== [] || $surplus,
             'teams_by_program' => $teamsByProgram,
+            'schedule_counts_by_program' => $countsByProgram,
         ];
     }
 
@@ -408,10 +443,15 @@ class NoticeService
         return false;
     }
 
-    private function scheduleCountsMismatch(Event $event, mixed $plan, array $draht): bool
+    /**
+     * Planned team count (plan parameter) differs from the registration, per program.
+     *
+     * @return array<string, bool> program compact => mismatch
+     */
+    private function scheduleCountsByProgram(Event $event, mixed $plan, array $draht): array
     {
         if (! $plan) {
-            return false;
+            return [];
         }
 
         $paramIds = DB::table('m_parameter')
@@ -424,9 +464,7 @@ class NoticeService
             ->pluck('set_value', 'parameter')
             ->map(fn ($v) => (int) $v);
 
-        $plannedChallengeTeams = $values[$paramIds['c_teams'] ?? null] ?? 0;
-        $plannedExploreTeams = $values[$paramIds['e_teams'] ?? null] ?? 0;
-        $plannedFutureTeams = $values[$paramIds['f8_teams'] ?? null] ?? 0;
+        $planned = fn (string $param): int => $values[$paramIds[$param] ?? null] ?? 0;
 
         $drahtPrograms = collect($draht['programs'] ?? []);
         $countFor = function (callable $match) use ($drahtPrograms): int {
@@ -436,25 +474,25 @@ class NoticeService
             return is_array($teams) ? count($teams) : 0;
         };
 
-        $registeredExploreTeams = $countFor(
-            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::EXPLORE) === 0
-        );
-        $registeredChallengeTeams = $countFor(
-            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::CHALLENGE) === 0
-        );
-        $registeredFutureTeams = $countFor(
-            fn ($p) => ProgramCatalog::isFuture($p['name'] ?? null)
-        );
+        $byProgram = [];
+        foreach ($event->programs as $program) {
+            $name = (string) $program->name;
+            if (strcasecmp($name, ProgramCatalog::EXPLORE) === 0) {
+                $param = 'e_teams';
+                $match = fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::EXPLORE) === 0;
+            } elseif (strcasecmp($name, ProgramCatalog::CHALLENGE) === 0) {
+                $param = 'c_teams';
+                $match = fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::CHALLENGE) === 0;
+            } elseif (ProgramCatalog::isFuture($name)) {
+                $param = 'f8_teams';
+                $match = fn ($p) => ProgramCatalog::isFuture($p['name'] ?? null);
+            } else {
+                continue;
+            }
+            $byProgram[$this->programCompact($name)] = $planned($param) !== $countFor($match);
+        }
 
-        $hasExplore = ProgramCatalog::hasExplore($event);
-        $hasChallenge = ProgramCatalog::hasChallenge($event);
-        $hasFuture = ProgramCatalog::hasFuture($event);
-
-        $exploreOk = $hasExplore ? ($plannedExploreTeams === $registeredExploreTeams) : true;
-        $challengeOk = $hasChallenge ? ($plannedChallengeTeams === $registeredChallengeTeams) : true;
-        $futureOk = $hasFuture ? ($plannedFutureTeams === $registeredFutureTeams) : true;
-
-        return ! ($exploreOk && $challengeOk && $futureOk);
+        return $byProgram;
     }
 
     private function roomsActivitiesOk(mixed $plan): bool
