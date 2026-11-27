@@ -8,7 +8,7 @@ const results = ref<any>(props.payload || null)
 const error = ref('')
 const tab = ref<'gesamt' | 'spiel'>('gesamt')
 
-const placeLabels: Record<string, string> = {champion: '1. Platz', silver: '2. Platz', bronze: '3. Platz'}
+const placeNumbers: Record<string, string> = {champion: '1', silver: '2', bronze: '3'}
 const categoryLabels: Record<string, string> = {
   research: 'Projekt',
   robotdesign: 'Technisches Design',
@@ -94,13 +94,22 @@ function formatPoints(value: number | null) {
 
       <section v-if="tab === 'gesamt'" class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
         <h2>Auszeichnungen</h2>
-        <ul v-if="awards.podium.length" class="scor-public__podium">
-          <li v-for="entry in awards.podium" :key="entry.place" :class="`is-${entry.place}`">
-            <i class="bi bi-trophy-fill" aria-hidden="true"/>
-            <span class="scor-public__label">{{ placeLabels[entry.place] }}</span>
-            <strong>{{ teamLine(entry.team) }}</strong>
-          </li>
-        </ul>
+        <div v-if="awards.podium.length" class="scor-podium">
+          <h3 class="scor-podium__title">Champion</h3>
+          <ol class="scor-podium__stage">
+            <li v-for="entry in awards.podium" :key="entry.place" class="scor-podium__step" :class="`is-${entry.place}`">
+              <span class="scor-podium__team">
+                <i class="bi bi-trophy-fill" aria-hidden="true"/>
+                <strong>{{ entry.team.name }}</strong>
+                <span class="scor-podium__number">{{ entry.team.number }}</span>
+              </span>
+              <span class="scor-podium__block">
+                <span class="scor-podium__place">{{ placeNumbers[entry.place] }}</span>
+                <span class="scor-podium__label">Platz</span>
+              </span>
+            </li>
+          </ol>
+        </div>
 
         <div class="scor-public__categories">
           <article v-for="category in awards.categories" :key="category.category" class="scor-public__category">
@@ -243,81 +252,178 @@ function formatPoints(value: number | null) {
   font-weight: 800;
 }
 
-.scor-public__podium {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+.scor-podium {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
+  padding: 1rem 1rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, color-mix(in srgb, #f5c542 10%, transparent) 0%, transparent 70%);
+}
+
+.scor-podium__title {
   margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.scor-podium__stage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.6rem;
+  max-width: 40rem;
+  width: 100%;
+  margin: 0 auto;
   padding: 0;
   list-style: none;
 }
 
-.scor-public__podium li {
+.scor-podium__step {
+  grid-row: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-muted);
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  text-align: center;
 }
 
-.scor-public__podium .bi {
-  font-size: 1.5rem;
+.scor-podium__step.is-silver {
+  grid-column: 1;
 }
 
-.scor-public__podium .is-champion .bi {
-  color: #a16207;
+.scor-podium__step.is-champion {
+  grid-column: 2;
 }
 
-.scor-public__podium .is-silver .bi {
-  color: #64748b;
+.scor-podium__step.is-bronze {
+  grid-column: 3;
 }
 
-.scor-public__podium .is-bronze .bi {
-  color: #9a3412;
+.scor-podium__team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.scor-public__podium strong {
-  font-size: 1.1rem;
+.scor-podium__team .bi {
+  font-size: 2rem;
+}
+
+.scor-podium__team strong {
+  font-size: clamp(0.9rem, 2.6vw, 1.3rem);
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.scor-podium__number {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.scor-podium__block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding-top: 0.6rem;
+  border-radius: 0.9rem 0.9rem 0 0;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.6);
+}
+
+.scor-podium__place {
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.scor-podium__label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.is-champion .scor-podium__block {
+  height: 9rem;
+  background: linear-gradient(180deg, #f7d461 0%, #d4a017 100%);
+  color: #4a3600;
+}
+
+.is-champion .scor-podium__team .bi {
+  font-size: 2.6rem;
+  color: #c08b00;
+}
+
+.is-champion .scor-podium__team strong {
+  font-size: clamp(1rem, 3vw, 1.55rem);
+}
+
+.is-silver .scor-podium__block {
+  height: 6.5rem;
+  background: linear-gradient(180deg, #e8edf3 0%, #9aa8ba 100%);
+  color: #273445;
+}
+
+.is-silver .scor-podium__team .bi {
+  color: #7b8899;
+}
+
+.is-bronze .scor-podium__block {
+  height: 5rem;
+  background: linear-gradient(180deg, #f1b47c 0%, #b5602a 100%);
+  color: #fff;
+}
+
+.is-bronze .scor-podium__team .bi {
+  color: #b5602a;
 }
 
 .scor-public__label {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
 .scor-public__label--award {
-  margin-top: 0.75rem;
+  margin-top: 0.85rem;
 }
 
 .scor-public__categories {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
 }
 
 .scor-public__category {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.85rem 1rem;
+  gap: 0.45rem;
+  padding: 1.1rem 1.2rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
 }
 
 .scor-public__category h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.3rem;
   font-weight: 800;
 }
 
 .scor-public__category ul {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -326,7 +432,8 @@ function formatPoints(value: number | null) {
 .scor-public__category li {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
+  font-size: 1.1rem;
 }
 
 .scor-public__category li .bi {
@@ -336,12 +443,22 @@ function formatPoints(value: number | null) {
 .scor-public__winner {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.6rem;
   margin: 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, #146c36 10%, transparent);
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.scor-public__winner span {
   font-weight: 800;
 }
 
 .scor-public__winner .bi {
+  flex: none;
+  font-size: 1.55rem;
   color: #146c36;
 }
 

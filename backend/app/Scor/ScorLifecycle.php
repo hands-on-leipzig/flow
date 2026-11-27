@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
 final class ScorLifecycle
 {
     /**
-     * @return array{closed: bool, released: bool, playground: bool, mail_body: string}
+     * @return array{closed: bool, released: bool, playground: bool, playground_publishes: bool, mail_body: string}
      */
     public function state(int $eventId): array
     {
@@ -26,6 +26,7 @@ final class ScorLifecycle
             'closed' => $row?->closed_at !== null,
             'released' => $row?->released_at !== null,
             'playground' => $this->playground($eventId),
+            'playground_publishes' => ScorMockData::available(),
             'mail_body' => (string) ($row->mail_body ?? $this->defaultMail()),
         ];
     }
@@ -46,7 +47,7 @@ final class ScorLifecycle
         if (!$this->state($eventId)['closed']) {
             throw new ScorAccessException('Zuerst wird die Auswertung festgeschrieben.', 422);
         }
-        if ($this->playground($eventId)) {
+        if ($this->playgroundLocks($eventId)) {
             throw new ScorAccessException('Während der Spielwiese wird nichts veröffentlicht.', 422);
         }
         $this->touch($eventId, ['released_at' => now()]);
@@ -82,8 +83,7 @@ final class ScorLifecycle
 
     public function assertPublic(int $eventId): void
     {
-        $state = $this->state($eventId);
-        if ($state['playground'] || !$state['released']) {
+        if ($this->playgroundLocks($eventId) || !$this->state($eventId)['released']) {
             throw new ScorAccessException('Die Ergebnisse sind nicht veröffentlicht.', 404);
         }
     }
@@ -162,6 +162,14 @@ final class ScorLifecycle
         }
 
         return now()->startOfDay()->lt(\Carbon\Carbon::parse($date)->startOfDay());
+    }
+
+    /**
+     * Dev and Test publish during the playground so the whole flow can be tried.
+     */
+    private function playgroundLocks(int $eventId): bool
+    {
+        return $this->playground($eventId) && !ScorMockData::available();
     }
 
     private function assertEventAdmin(User $user, int $eventId): void

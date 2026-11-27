@@ -344,7 +344,8 @@ async function saveStage() {
   </form>
     <div v-else class="mx-auto max-w-5xl space-y-6">
     <p v-if="overview?.lifecycle?.playground" class="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-lg">
-      Spielwiese. Bis zum Tag der Veranstaltung zählen die Bögen nur zum Üben und werden in der Nacht davor gelöscht. Nichts davon ist öffentlich.
+      Spielwiese. Bis zum Tag der Veranstaltung zählen die Bögen nur zum Üben und werden in der Nacht davor gelöscht.
+      {{ overview.lifecycle.playground_publishes ? 'Auf Dev und Test lässt sich zum Ausprobieren trotzdem veröffentlichen.' : 'Nichts davon ist öffentlich.' }}
     </p>
     <div>
       <button

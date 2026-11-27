@@ -240,6 +240,36 @@ class ScorSheetServiceTest extends TestCase
         $this->assertNull(DB::table('scor_event')->where('event', 1)->value('released_at'));
     }
 
+    public function test_dev_and_test_publish_during_the_playground_but_production_does_not(): void
+    {
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->timestamp('playground_reset_at')->nullable();
+            $table->text('mail_body')->nullable();
+        });
+        DB::table('event')->where('id', 1)->update(['date' => now()->addDays(3)->toDateString()]);
+        request()->attributes->set('jwt', ['realm_access' => ['roles' => ['flow_admin']]]);
+
+        $this->sheets->closeEvent($this->user(), 1);
+        $released = $this->sheets->releaseEvent($this->user(), 1);
+        $this->assertTrue($released['released']);
+        $this->assertTrue($released['playground']);
+        $this->assertSame('Future Cup', $this->sheets->publishedResults(1)['event']['name']);
+
+        $this->app['env'] = 'production';
+        try {
+            $this->sheets->publishedResults(1);
+            $this->fail('Auf Produktion bleibt die Spielwiese privat.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(404, $e->status);
+        }
+        DB::table('scor_event')->update(['released_at' => null]);
+        $this->expectExceptionMessage('Während der Spielwiese wird nichts veröffentlicht.');
+        $this->sheets->releaseEvent($this->user(), 1);
+    }
+
     public function test_mock_data_fills_and_confirms_every_sheet_and_clears_awards(): void
     {
         $this->seedContaoRanking();
