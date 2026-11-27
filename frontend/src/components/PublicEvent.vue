@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {imageUrl} from '@/utils/images'
-import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, resolveProgramRef} from '@/utils/eventPrograms'
 import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -24,6 +24,7 @@ const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
 const publishedResults = ref(null)
+const contaoResultLinks = ref([])
 
 
 const headingTitle = computed(() => getEventTitleLong(event.value) || event.value?.name || 'Veranstaltung')
@@ -45,23 +46,30 @@ const heroTitle = computed(() => {
 })
 
 const publishedAwardLines = computed(() => {
-  const payload = publishedResults.value
-  if (!payload?.game) return []
+  const awards = publishedResults.value?.awards
+  if (!awards) return []
   const line = (team) => team ? `${team.number} ${team.name}` : ''
-  const place = (id) => line(payload.podium?.find((entry) => entry.place === id)?.team)
-  const winner = (id) => line(payload.categories?.find((entry) => entry.category === id)?.nominees.find((team) => team.trophy))
+  const place = (id) => line(awards.podium?.find((entry) => entry.place === id)?.team)
+  const winner = (id) => line(awards.categories?.find((entry) => entry.category === id)?.winner)
   const lines = [
-    {label: 'Champion', value: place('champion')},
-    {label: 'Silber', value: place('silver')},
-    {label: 'Bronze', value: place('bronze')},
+    {label: '1. Platz', value: place('champion')},
+    {label: '2. Platz', value: place('silver')},
+    {label: '3. Platz', value: place('bronze')},
     {label: 'Projekt', value: winner('research')},
     {label: 'Technisches Design', value: winner('robotdesign')},
     {label: 'Grundwerte', value: winner('core_values')},
-    {label: 'Coaching', value: line(payload.coaching)},
-    {label: 'Spiel', value: payload.game.filter((team) => team.rank === 1).map(line).join(', ')},
+    {label: 'Coaching', value: line(awards.coaching)},
+    {label: 'Spiel', value: (awards.game || []).map(line).join(', ')},
   ]
   return lines.filter((line) => line.value)
 })
+
+function resultsLabel(firstProgram) {
+  const name = programDisplayName(resolveProgramRef(event.value, firstProgram))
+  return name ? `Ergebnisse ${name}` : 'Ergebnisse'
+}
+
+const showResultsSection = computed(() => !!publishedResults.value || contaoResultLinks.value.length > 0)
 
 const loadEvent = async () => {
   try {
@@ -115,6 +123,13 @@ const loadEvent = async () => {
       publishedResults.value = resultsResponse.data
     } catch {
       publishedResults.value = null
+    }
+
+    try {
+      const linksResponse = await axios.get(`/contao/public/results-links/${event.value.id}`)
+      contaoResultLinks.value = Array.isArray(linksResponse.data) ? linksResponse.data : []
+    } catch {
+      contaoResultLinks.value = []
     }
   } catch (err) {
     console.error('Error loading event:', err)
@@ -453,19 +468,32 @@ onMounted(async () => {
       </header>
 
       <section
-          v-if="publishedAwardLines.length"
+          v-if="showResultsSection"
           class="glass-card liquid-surface-inner pe-section"
       >
         <h2 class="glass-card__title">Ergebnisse</h2>
-        <ul class="pe-results">
+        <ul v-if="publishedAwardLines.length" class="pe-results">
           <li v-for="line in publishedAwardLines" :key="line.label">
             <span>{{ line.label }}</span>
             <strong>{{ line.value }}</strong>
           </li>
         </ul>
-        <button type="button" class="glass-btn-secondary pe-results__more" @click="openResults">
-          Alle Ergebnisse mit Spielpunkten und Nominierungen
-        </button>
+        <div class="pe-results__links">
+          <button v-if="publishedResults" type="button" class="glass-btn-secondary" @click="openResults">
+            {{ resultsLabel(8) }}
+          </button>
+          <a
+              v-for="link in contaoResultLinks"
+              :key="link.url"
+              class="glass-btn-secondary pe-results__external"
+              :href="link.url"
+              target="_blank"
+              rel="noopener noreferrer"
+          >
+            {{ resultsLabel(link.first_program) }}
+            <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+          </a>
+        </div>
       </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
@@ -989,9 +1017,17 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
-.pe-results__more {
-  display: inline-flex;
+.pe-results__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   margin-top: 1rem;
+}
+
+.pe-results__external {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   text-decoration: none;
 }
 

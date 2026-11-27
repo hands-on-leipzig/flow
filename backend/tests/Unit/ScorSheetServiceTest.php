@@ -218,6 +218,28 @@ class ScorSheetServiceTest extends TestCase
         $this->sheets->saveReferee($this->user(), 1, 1, 1, ['values' => []]);
     }
 
+    public function test_event_admin_closes_but_only_a_flow_admin_releases(): void
+    {
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->timestamp('playground_reset_at')->nullable();
+            $table->text('mail_body')->nullable();
+        });
+        DB::table('event')->where('id', 1)->update(['date' => now()->toDateString()]);
+
+        $this->assertTrue($this->sheets->closeEvent($this->user(), 1)['closed']);
+
+        try {
+            $this->sheets->releaseEvent($this->user(), 1);
+            $this->fail('Veranstaltung-Admin darf nicht veröffentlichen.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(403, $e->status);
+        }
+        $this->assertNull(DB::table('scor_event')->where('event', 1)->value('released_at'));
+    }
+
     public function test_playground_reset_clears_sheets_the_day_before(): void
     {
         Schema::create('scor_event', function (Blueprint $table) {

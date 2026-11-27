@@ -4,8 +4,9 @@ namespace App\Scor;
 
 /**
  * Released results for visitors.
- * Spiel shows points and rank. Awards show only the podium, nominees and trophy holders.
- * No jury points, no jury ranks, no overall ranking.
+ * Awards carry teams only: podium, nominees, trophy holders. No points, no ranks, no overall ranking.
+ * Spiel carries every scoring round with points, the average and the Spiel rank.
+ * No jury points and no jury ranks anywhere.
  */
 final class ScorPublicResults
 {
@@ -38,13 +39,17 @@ final class ScorPublicResults
             $nominees = [];
             foreach ($awards['nominations'] as $row) {
                 $id = (int) $row['team'];
-                if ((string) $row['category'] !== $category || !isset($teams[$id])) {
-                    continue;
+                if ((string) $row['category'] === $category && isset($teams[$id])) {
+                    $nominees[] = $this->team($teams[$id]);
                 }
-                $nominees[] = $this->team($teams[$id]) + ['trophy' => ($trophyHolder[$category] ?? null) === $id];
             }
             usort($nominees, fn (array $a, array $b) => (int) $a['number'] <=> (int) $b['number']);
-            $categories[] = ['category' => $category, 'nominees' => $nominees];
+            $winner = $trophyHolder[$category] ?? null;
+            $categories[] = [
+                'category' => $category,
+                'nominees' => $nominees,
+                'winner' => $winner !== null && isset($teams[$winner]) ? $this->team($teams[$winner]) : null,
+            ];
         }
 
         $coaching = $awards['coaching'] ?? null;
@@ -58,20 +63,43 @@ final class ScorPublicResults
             return (int) $a['number'] <=> (int) $b['number'];
         });
 
+        $gameWinners = array_values(array_filter(
+            $game,
+            fn (array $team) => (int) $team['robot_rank'] === 1 && $team['robot'] > 0,
+        ));
+
         return [
             'event' => $results['event'],
-            'rounds' => $results['rounds'],
-            'game' => array_map(fn (array $team) => $this->team($team) + [
-                'rank' => (int) $team['robot_rank'],
-                'average' => $team['robot'],
-                'rounds' => array_map(
-                    fn ($cell) => $cell === null ? null : ['round' => $cell['round'], 'points' => $cell['points']],
-                    $team['rounds'],
-                ),
-            ], $game),
-            'podium' => $podium,
-            'categories' => $categories,
-            'coaching' => $coaching && isset($teams[(int) $coaching]) ? $this->team($teams[(int) $coaching]) : null,
+            'awards' => [
+                'podium' => $podium,
+                'categories' => $categories,
+                'coaching' => $coaching && isset($teams[(int) $coaching]) ? $this->team($teams[(int) $coaching]) : null,
+                'game' => array_map(fn (array $team) => $this->team($team), $gameWinners),
+            ],
+            'game' => [
+                'rounds' => $results['rounds'],
+                'teams' => array_map(fn (array $team) => $this->gameRow($team), $game),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $team
+     * @return array<string, mixed>
+     */
+    private function gameRow(array $team): array
+    {
+        $cells = array_map(
+            fn ($cell) => $cell === null ? null : ['round' => $cell['round'], 'points' => $cell['points']],
+            $team['rounds'],
+        );
+        $played = array_column(array_filter($cells), 'points');
+
+        return $this->team($team) + [
+            'rank' => (int) $team['robot_rank'],
+            'average' => $team['robot'],
+            'best' => $played === [] ? null : max($played),
+            'rounds' => $cells,
         ];
     }
 
