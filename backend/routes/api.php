@@ -164,6 +164,8 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::post('/session', [CockpitController::class, 'openSession']);
     Route::get('/rounds', [CockpitController::class, 'getRounds']);
     Route::put('/rounds', [CockpitController::class, 'saveRounds']);
+    Route::get('/results', [CockpitController::class, 'results']);
+    Route::put('/game-rounds', [CockpitController::class, 'saveGameRounds']);
     Route::get('/organizer', [CockpitController::class, 'organizerContact']);
     Route::get('/phonebook', [CockpitController::class, 'phonebook']);
     Route::get('/overview', [CockpitController::class, 'overview']);
@@ -183,6 +185,7 @@ Route::prefix('contao')->group(function () {
 Route::post('/scor/login', [ScorController::class, 'login']);
 Route::get('/scor/public/practice/{eventId}', [ScorController::class, 'practice']);
 Route::get('/scor/public/results/{eventId}', [ScorController::class, 'published']);
+Route::get('/scor/public/game/{eventId}', [ScorController::class, 'game']);
 Route::post('/scor/public/practice/score', [ScorController::class, 'practiceScore']);
 
 Route::middleware(['keycloak'])->group(function () {

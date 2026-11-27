@@ -3,7 +3,7 @@
 import draggable from "vuedraggable";
 import SlideThumb from "@/components/SlideThumb.vue";
 import {useEventStore} from "@/stores/event";
-import {computed, nextTick, onMounted, ref, watch} from "vue";
+import {computed, markRaw, nextTick, onMounted, ref, watch} from "vue";
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
@@ -17,6 +17,8 @@ import PanelSplitter from "@/components/atoms/PanelSplitter.vue";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import Spinner from "@/components/atoms/Spinner.vue";
 import {showGlassToast} from "@/composables/useGlassToast";
+import IconChallenge from "@/components/icons/IconChallenge.vue";
+import IconFuture8 from "@/components/icons/IconFuture8.vue";
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -131,7 +133,8 @@ const teamsChoices = [
 ];
 
 const slideTypes = [
-  {slide: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
+  {slide: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', iconComponent: markRaw(IconChallenge)},
+  {slide: 'FutureGameSlideContent', label: 'Spiel-Ergebnisse', iconComponent: markRaw(IconFuture8)},
   {subModal: publicPlanChoices, label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
   {slide: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
   {slide: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
@@ -278,7 +281,7 @@ async function updateTransitionTime(slideshow: Slideshow) {
 
 const slidesWithOwnDuration = computed(() =>
     (selectedSlideshow.value?.slides ?? []).filter((slide) =>
-        slide.type !== 'RobotGameSlideContent' && (slide.transition_time ?? 0) > 0)
+        !['RobotGameSlideContent', 'FutureGameSlideContent'].includes(slide.type) && (slide.transition_time ?? 0) > 0)
 );
 
 const showDurationPicker = ref(false);
@@ -735,12 +738,13 @@ async function addSlide(selectedType: string) {
                    class="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-75 rounded-lg">
                 <Spinner size="md"/>
               </div>
-              <i :class="[
-              `bi ${type.icon} text-4xl mb-3 transition-colors`,
+              <component :is="type.iconComponent ?? 'i'" :class="[
+              type.iconComponent ? '' : `bi ${type.icon}`,
+              'text-4xl mb-3 transition-colors',
               creatingSlideType === type.slide
                 ? 'text-blue-600'
                 : 'text-[var(--color-text-muted)] group-hover:text-blue-600'
-            ]"></i>
+            ]"/>
               <span :class="[
               'text-sm font-medium text-center',
               creatingSlideType === type.slide

@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Enums\FirstProgram;
 use App\Models\User;
 use App\Scor\ScorFormStore;
+use App\Scor\ScorPublicGame;
 use App\Scor\ScorSheetService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -892,6 +893,37 @@ class ScorSheetServiceTest extends TestCase
         ]);
 
         $this->assertCount(3, $saved['awards']['trophies']);
+    }
+
+    public function test_public_game_shows_only_released_rounds_and_confirmed_sheets(): void
+    {
+        $this->seedContaoRanking();
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->json('public_rounds')->nullable();
+        });
+        $game = app(ScorPublicGame::class);
+
+        $this->assertSame(
+            [['round' => 1, 'label' => 'Runde 1', 'visible' => false], ['round' => 2, 'label' => 'Runde 2', 'visible' => false]],
+            $game->rounds(1)['rounds'],
+        );
+        $this->assertSame([], $game->game(1)['teams']);
+
+        $saved = $game->saveRounds(1, [2, 9]);
+        $this->assertSame([false, true], array_column($saved['rounds'], 'visible'));
+
+        $game->saveRounds(1, [1, 2]);
+        $result = $game->game(1);
+
+        $this->assertSame([1, 2], array_column($result['rounds'], 'round'));
+        $this->assertSame([2, 3, 1], array_column($result['teams'], 'id'));
+        $this->assertSame([1, 2, 3], array_column($result['teams'], 'rank'));
+        $this->assertSame([30, null], $result['teams'][0]['points']);
+        $this->assertSame([10, null], $result['teams'][2]['points']);
+        $this->assertEquals(15, $result['teams'][0]['average']);
     }
 
     private function seedContaoRanking(): void

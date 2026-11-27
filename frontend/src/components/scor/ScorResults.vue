@@ -31,7 +31,13 @@ const awardColumns = [
 ]
 const categoryIds = ['research', 'robotdesign', 'core_values']
 const presentRoot = ref<HTMLElement | null>(null)
-const presenting = ref(false)
+const gameRoot = ref<HTMLElement | null>(null)
+const presentMode = ref<'awards' | 'spiel' | null>(null)
+const presenting = computed(() => presentMode.value === 'awards')
+const gamePresenting = computed(() => presentMode.value === 'spiel')
+const REVEAL_MS = 1500
+const revealed = ref(0)
+let revealTimer = 0
 let storedAwardsKey: string | null = null
 let awardSaveTimer = 0
 let awardSave: Promise<void> | null = null
@@ -191,10 +197,11 @@ function toggleAward(team: any, category: string) {
   if (!on) trophies.value.push({team: team.id, category})
 }
 
-async function startPresent() {
-  presenting.value = true
+async function startPresent(mode: 'awards' | 'spiel' = 'awards') {
+  if (mode === 'spiel') resetReveal()
+  presentMode.value = mode
   await nextTick()
-  const node = presentRoot.value
+  const node = mode === 'spiel' ? gameRoot.value : presentRoot.value
   if (!node || document.fullscreenElement) return
   try {
     await node.requestFullscreen()
@@ -204,7 +211,8 @@ async function startPresent() {
 }
 
 function stopPresent() {
-  presenting.value = false
+  presentMode.value = null
+  stopReveal()
   if (document.fullscreenElement) {
     void document.exitFullscreen().catch(() => {})
   }
@@ -212,13 +220,58 @@ function stopPresent() {
 
 function onPresentKey(event: KeyboardEvent) {
   if (event.key === 'Escape') stopPresent()
+  else if (gamePresenting.value && event.key.toLowerCase() === 'g' && !event.repeat) toggleReveal()
 }
 
 function onFullscreenChange() {
-  if (!document.fullscreenElement) presenting.value = false
+  if (!document.fullscreenElement) stopPresent()
 }
 
-watch(presenting, (on) => {
+/** Latest scoring round with at least one sheet. */
+const latestRound = computed(() => {
+  const played = (props.results?.rounds || [])
+      .map((round: any) => Number(round.round))
+      .filter((round: number) => byRobot.value.some((team) => roundCell(team, round)))
+  return played.length ? Math.max(...played) : null
+})
+
+function resetReveal() {
+  stopReveal()
+  revealed.value = 0
+}
+
+function stopReveal() {
+  window.clearInterval(revealTimer)
+  revealTimer = 0
+}
+
+/** G starts the reveal from the bottom row, G again pauses or resumes it. */
+function toggleReveal() {
+  if (revealTimer) {
+    stopReveal()
+    return
+  }
+  if (revealed.value >= byRobot.value.length) return
+  revealNext()
+  if (revealed.value < byRobot.value.length) revealTimer = window.setInterval(revealNext, REVEAL_MS)
+}
+
+function revealNext() {
+  revealed.value = Math.min(revealed.value + 1, byRobot.value.length)
+  const row = gameRoot.value?.querySelectorAll('tbody tr')[byRobot.value.length - revealed.value]
+  row?.scrollIntoView({block: 'nearest', behavior: 'smooth'})
+  if (revealed.value >= byRobot.value.length) stopReveal()
+}
+
+function covered(index: number) {
+  return gamePresenting.value && index < byRobot.value.length - revealed.value
+}
+
+function justRevealed(index: number) {
+  return gamePresenting.value && revealed.value > 0 && index === byRobot.value.length - revealed.value
+}
+
+watch(presentMode, (on) => {
   if (on) {
     document.addEventListener('fullscreenchange', onFullscreenChange)
     document.addEventListener('keydown', onPresentKey)
@@ -375,6 +428,7 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 const board = ref<'spiel' | 'jury' | 'awards'>('spiel')
 onBeforeUnmount(() => {
   window.clearTimeout(awardSaveTimer)
+  stopReveal()
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPresentKey)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
@@ -495,34 +549,55 @@ function formatPoints(value: number) {
     />
 
     <section v-if="board === 'spiel'" class="scor-results__block">
-      <div class="scor-board glass-card liquid-surface-inner">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Team</th>
-              <th v-for="round in results.rounds" :key="round.round" scope="col">{{ round.label }}</th>
-              <th scope="col">Punktedurchschnitt</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="team in byRobot" :key="team.id">
-              <th scope="row">
-                <span class="scor-team__name">{{ team.name }}</span>
-                <span class="scor-team__number">{{ team.number }}</span>
-              </th>
-              <td v-for="round in results.rounds" :key="round.round">
-                <template v-if="roundCell(team, round.round)">
-                  <span class="scor-points">{{ roundCell(team, round.round).points }}</span>
-                  <span v-if="!roundCell(team, round.round).confirmed" class="scor-points__state">begonnen</span>
-                </template>
-                <span v-else class="scor-points__state">–</span>
-              </td>
-              <td>
-                <span class="scor-points scor-points--best">ø {{ formatPoints(team.robot) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="scor-award-tools">
+        <p class="scor-results__note">
+          Im Vollbild sind alle Zeilen verdeckt. Drücke G, damit sie von unten nach oben nacheinander erscheinen.
+          G hält an und läuft weiter.
+        </p>
+        <button type="button" class="scor-present" :aria-label="gamePresenting ? 'Vollbild beenden' : 'Vollbild'" @click="gamePresenting ? stopPresent() : startPresent('spiel')">
+          <i class="bi" :class="gamePresenting ? 'bi-fullscreen-exit' : 'bi-fullscreen'" aria-hidden="true"/>
+        </button>
+      </div>
+      <div ref="gameRoot" class="scor-stage scor-game" :class="{'is-present': gamePresenting}">
+        <div class="scor-board glass-card liquid-surface-inner">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Team</th>
+                <th
+                    v-for="round in results.rounds"
+                    :key="round.round"
+                    scope="col"
+                    :class="{'is-latest': round.round === latestRound}"
+                >{{ round.label }}</th>
+                <th scope="col">Punktedurchschnitt</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                  v-for="(team, index) in byRobot"
+                  :key="team.id"
+                  :class="{'is-covered': covered(index), 'is-current': justRevealed(index)}"
+                  :aria-hidden="covered(index) ? 'true' : undefined"
+              >
+                <th scope="row">
+                  <span class="scor-team__name">{{ team.name }}</span>
+                  <span class="scor-team__number">{{ team.number }}</span>
+                </th>
+                <td v-for="round in results.rounds" :key="round.round" :class="{'is-latest': round.round === latestRound}">
+                  <template v-if="roundCell(team, round.round)">
+                    <span class="scor-points">{{ roundCell(team, round.round).points }}</span>
+                    <span v-if="!gamePresenting && !roundCell(team, round.round).confirmed" class="scor-points__state">begonnen</span>
+                  </template>
+                  <span v-else class="scor-points__state">–</span>
+                </td>
+                <td>
+                  <span class="scor-points scor-points--best">ø {{ formatPoints(team.robot) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <p class="scor-results__note">
         Gespeicherte Bögen zählen mit. „begonnen“ heißt: Schiri und Team haben noch nicht beide bestätigt.
@@ -927,6 +1002,60 @@ function formatPoints(value: number) {
   width: 3.4rem;
   height: 3.4rem;
   font-size: 1.85rem;
+}
+
+.scor-game.is-present .scor-board table,
+.scor-game:fullscreen .scor-board table {
+  min-width: 0;
+}
+
+.scor-game:fullscreen .scor-board th,
+.scor-game:fullscreen .scor-board td {
+  padding: 1rem 1.25rem;
+  vertical-align: middle;
+}
+
+.scor-game:fullscreen thead th {
+  font-size: 1.4rem;
+}
+
+.scor-game:fullscreen .scor-team__name {
+  font-size: 2rem;
+}
+
+.scor-game:fullscreen .scor-team__number {
+  font-size: 1.2rem;
+}
+
+.scor-game:fullscreen .scor-points {
+  font-size: 2.4rem;
+}
+
+.scor-game tbody tr > * {
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out, background-color 0.4s ease;
+}
+
+.scor-game tbody tr.is-covered > * {
+  opacity: 0;
+  transform: translateY(0.6rem);
+}
+
+.scor-game .is-latest {
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
+}
+
+.scor-game thead th.is-latest {
+  color: var(--color-accent);
+  box-shadow: inset 0 -3px 0 var(--color-accent);
+}
+
+.scor-game tbody tr.is-current td,
+.scor-game tbody tr.is-current th {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg));
+}
+
+.scor-game tbody tr.is-current td.is-latest {
+  background: color-mix(in srgb, var(--color-accent) 30%, var(--color-bg));
 }
 
 .scor-present {
