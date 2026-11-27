@@ -36,8 +36,16 @@ const presentMode = ref<'awards' | 'spiel' | null>(null)
 const presenting = computed(() => presentMode.value === 'awards')
 const gamePresenting = computed(() => presentMode.value === 'spiel')
 const REVEAL_MS = 1500
+const KEEP_READABLE = 5
+const MIN_ROW_SCALE = 0.32
 const revealed = ref(0)
+const spotlight = ref<number | null>(null)
+const rowScales = ref<number[]>([])
 let revealTimer = 0
+let spotlightTimer = 0
+let refitTimer = 0
+let naturalRowPx = 0
+let fitObserver: ResizeObserver | null = null
 let storedAwardsKey: string | null = null
 let awardSaveTimer = 0
 let awardSave: Promise<void> | null = null
@@ -237,7 +245,12 @@ const latestRound = computed(() => {
 
 function resetReveal() {
   stopReveal()
+  window.clearTimeout(spotlightTimer)
+  window.clearTimeout(refitTimer)
   revealed.value = 0
+  spotlight.value = null
+  rowScales.value = []
+  naturalRowPx = 0
 }
 
 function stopReveal() {
@@ -257,10 +270,17 @@ function toggleReveal() {
 }
 
 function revealNext() {
-  revealed.value = Math.min(revealed.value + 1, byRobot.value.length)
-  const row = gameRoot.value?.querySelectorAll('tbody tr')[byRobot.value.length - revealed.value]
-  row?.scrollIntoView({block: 'nearest', behavior: 'smooth'})
-  if (revealed.value >= byRobot.value.length) stopReveal()
+  const count = byRobot.value.length
+  revealed.value = Math.min(revealed.value + 1, count)
+  spotlight.value = count - revealed.value
+  window.clearTimeout(spotlightTimer)
+  if (revealed.value >= count) {
+    stopReveal()
+    spotlightTimer = window.setTimeout(() => {
+      spotlight.value = null
+    }, 650)
+  }
+  queueFit()
 }
 
 function covered(index: number) {
@@ -268,16 +288,152 @@ function covered(index: number) {
 }
 
 function justRevealed(index: number) {
-  return gamePresenting.value && revealed.value > 0 && index === byRobot.value.length - revealed.value
+  return gamePresenting.value && spotlight.value === index
+}
+
+function rowPresentStyle(index: number) {
+  if (!gamePresenting.value || covered(index)) return undefined
+  const scale = rowScales.value[index] ?? 1
+  return {'--row-scale': scale.toFixed(3)}
+}
+
+/**
+ * Full size until the rows reach the top. Further rows squeeze the lower teams
+ * on a log curve; the best five stay large. Everything stays inside the stage.
+ */
+function computeScales(count: number, shown: number, available: number, natural: number): number[] {
+  const scales = Array(count).fill(0)
+  if (shown <= 0 || natural <= 0 || available <= 0) return scales
+  const start = count - shown
+  for (let i = start; i < count; i++) scales[i] = 1
+  const overflow = shown * natural - available
+  if (overflow <= 0.5) return scales
+
+  const keep = Math.min(KEEP_READABLE, count)
+  const tail: number[] = []
+  for (let i = Math.max(start, keep); i < count; i++) tail.push(i)
+  if (tail.length === 0) {
+    const scale = available / (shown * natural)
+    for (let i = start; i < count; i++) scales[i] = scale
+    return scales
+  }
+
+  const weights = tail.map((_, t) => Math.log2(t + 2))
+  const maxRemove = (1 - MIN_ROW_SCALE) * natural
+  const removed = tail.map(() => 0)
+  let done = 0
+  for (let guard = 0; guard < 6 && done < overflow - 0.5; guard++) {
+    let open = 0
+    tail.forEach((_, t) => {
+      if (removed[t] < maxRemove - 0.1) open += weights[t]
+    })
+    if (open <= 0) break
+    const still = overflow - done
+    let consumed = 0
+    tail.forEach((_, t) => {
+      if (removed[t] >= maxRemove - 0.1) return
+      const add = Math.min(weights[t] / open * still, maxRemove - removed[t])
+      removed[t] += add
+      consumed += add
+    })
+    done += consumed
+    if (consumed < 0.5) break
+  }
+  tail.forEach((index, t) => {
+    scales[index] = Math.max(MIN_ROW_SCALE, 1 - removed[t] / natural)
+  })
+
+  let height = 0
+  for (let i = start; i < count; i++) height += scales[i] * natural
+  let over = height - available
+  for (let i = count - 1; i >= start && over > 0.5; i--) {
+    const floor = i < keep ? 0.62 : 0.18
+    const take = Math.min(Math.max(0, scales[i] - floor) * natural, over)
+    scales[i] -= take / natural
+    over -= take
+  }
+  if (over > 0.5) {
+    height = 0
+    for (let i = start; i < count; i++) height += scales[i] * natural
+    const factor = available / height
+    for (let i = start; i < count; i++) scales[i] *= factor
+  }
+  return scales
+}
+
+function stageRoom(): {available: number, natural: number} | null {
+  const root = gameRoot.value
+  if (!root) return null
+  const body = root.querySelector<HTMLElement>('tbody')
+  if (!body) return null
+  const available = body.clientHeight
+  root.querySelectorAll<HTMLElement>('tbody tr[data-index]').forEach((row) => {
+    const index = Number(row.dataset.index)
+    if (row.classList.contains('is-covered') || !Number.isInteger(index)) return
+    const scale = rowScales.value[index] || 1
+    if (scale < 0.98) return
+    const height = row.getBoundingClientRect().height
+    if (height > naturalRowPx) naturalRowPx = height
+  })
+  return {available, natural: naturalRowPx || 96}
+}
+
+function fitRows() {
+  if (!gamePresenting.value) return
+  const room = stageRoom()
+  if (!room || room.available < 40) return
+  rowScales.value = computeScales(byRobot.value.length, revealed.value, room.available, room.natural)
+  nextTick(() => requestAnimationFrame(correctOverflow))
+  window.clearTimeout(refitTimer)
+  const known = naturalRowPx
+  refitTimer = window.setTimeout(() => {
+    if (!gamePresenting.value) return
+    stageRoom()
+    if (naturalRowPx > known + 4) fitRows()
+    else correctOverflow()
+  }, 520)
+}
+
+/** Rendered rows run a little taller than the estimate. Shrink once more so the top stays on screen. */
+function correctOverflow() {
+  const body = gameRoot.value?.querySelector('tbody')
+  if (!body || !gamePresenting.value) return
+  let used = 0
+  body.querySelectorAll('tr[data-index]:not(.is-covered)').forEach((row) => {
+    used += row.getBoundingClientRect().height
+  })
+  const room = body.clientHeight
+  if (used <= room + 1 || used <= 0) return
+  const factor = room / used
+  rowScales.value = rowScales.value.map((scale, index) => covered(index) ? 0 : scale * factor)
+}
+
+function queueFit() {
+  nextTick(() => requestAnimationFrame(fitRows))
+}
+
+function watchStageSize(on: boolean) {
+  fitObserver?.disconnect()
+  fitObserver = null
+  if (!on || !gameRoot.value || !window.ResizeObserver) return
+  fitObserver = new ResizeObserver(() => fitRows())
+  fitObserver.observe(gameRoot.value)
+  queueFit()
 }
 
 watch(presentMode, (on) => {
   if (on) {
     document.addEventListener('fullscreenchange', onFullscreenChange)
     document.addEventListener('keydown', onPresentKey)
+    if (on === 'spiel') nextTick(() => watchStageSize(true))
   } else {
     document.removeEventListener('fullscreenchange', onFullscreenChange)
     document.removeEventListener('keydown', onPresentKey)
+    watchStageSize(false)
+    window.clearTimeout(spotlightTimer)
+    window.clearTimeout(refitTimer)
+    naturalRowPx = 0
+    rowScales.value = []
   }
 })
 
@@ -428,7 +584,10 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 const board = ref<'spiel' | 'jury' | 'awards'>('spiel')
 onBeforeUnmount(() => {
   window.clearTimeout(awardSaveTimer)
+  window.clearTimeout(spotlightTimer)
+  window.clearTimeout(refitTimer)
   stopReveal()
+  fitObserver?.disconnect()
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPresentKey)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
@@ -552,7 +711,7 @@ function formatPoints(value: number) {
       <div class="scor-award-tools">
         <p class="scor-results__note">
           Im Vollbild sind alle Zeilen verdeckt. Drücke G, damit sie von unten nach oben nacheinander erscheinen.
-          G hält an und läuft weiter.
+          G hält an und läuft weiter. Passen nicht alle Teams auf den Bildschirm, werden die unteren Zeilen kleiner.
         </p>
         <button type="button" class="scor-present" :aria-label="gamePresenting ? 'Vollbild beenden' : 'Vollbild'" @click="gamePresenting ? stopPresent() : startPresent('spiel')">
           <i class="bi" :class="gamePresenting ? 'bi-fullscreen-exit' : 'bi-fullscreen'" aria-hidden="true"/>
@@ -577,7 +736,9 @@ function formatPoints(value: number) {
               <tr
                   v-for="(team, index) in byRobot"
                   :key="team.id"
+                  :data-index="index"
                   :class="{'is-covered': covered(index), 'is-current': justRevealed(index)}"
+                  :style="rowPresentStyle(index)"
                   :aria-hidden="covered(index) ? 'true' : undefined"
               >
                 <th scope="row">
@@ -1004,40 +1165,129 @@ function formatPoints(value: number) {
   font-size: 1.85rem;
 }
 
+.scor-game.is-present,
+.scor-game:fullscreen {
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.scor-game:fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.scor-game.is-present .scor-board,
+.scor-game:fullscreen .scor-board {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .scor-game.is-present .scor-board table,
 .scor-game:fullscreen .scor-board table {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.scor-game.is-present thead,
+.scor-game:fullscreen thead,
+.scor-game.is-present tbody,
+.scor-game:fullscreen tbody,
+.scor-game.is-present tr,
+.scor-game:fullscreen tr {
+  display: flex;
+  width: 100%;
   min-width: 0;
 }
 
-.scor-game:fullscreen .scor-board th,
-.scor-game:fullscreen .scor-board td {
-  padding: 1rem 1.25rem;
-  vertical-align: middle;
+.scor-game.is-present thead,
+.scor-game:fullscreen thead {
+  flex: none;
+  flex-direction: column;
 }
 
-.scor-game:fullscreen thead th {
+.scor-game.is-present tbody,
+.scor-game:fullscreen tbody {
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.scor-game.is-present thead th:first-child,
+.scor-game:fullscreen thead th:first-child,
+.scor-game.is-present tbody th,
+.scor-game:fullscreen tbody th {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.scor-game.is-present thead th:not(:first-child),
+.scor-game:fullscreen thead th:not(:first-child),
+.scor-game.is-present tbody td,
+.scor-game:fullscreen tbody td {
+  flex: 0 0 9rem;
+}
+
+.scor-game.is-present .scor-board th,
+.scor-game.is-present .scor-board td,
+.scor-game:fullscreen .scor-board th,
+.scor-game:fullscreen .scor-board td {
+  padding: calc(1rem * var(--row-scale, 1)) calc(1.25rem * var(--row-scale, 1));
+  vertical-align: middle;
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out, background-color 0.45s ease, padding 0.45s ease, font-size 0.45s ease;
+}
+
+.scor-game:fullscreen thead th,
+.scor-game.is-present thead th {
   font-size: 1.4rem;
 }
 
-.scor-game:fullscreen .scor-team__name {
-  font-size: 2rem;
+.scor-game:fullscreen .scor-team__name,
+.scor-game.is-present .scor-team__name {
+  font-size: calc(2rem * var(--row-scale, 1));
 }
 
-.scor-game:fullscreen .scor-team__number {
-  font-size: 1.2rem;
+.scor-game:fullscreen .scor-team__number,
+.scor-game.is-present .scor-team__number {
+  font-size: calc(1.2rem * var(--row-scale, 1));
 }
 
-.scor-game:fullscreen .scor-points {
-  font-size: 2.4rem;
+.scor-game:fullscreen .scor-points,
+.scor-game.is-present .scor-points {
+  font-size: calc(2.4rem * var(--row-scale, 1));
 }
 
-.scor-game tbody tr > * {
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out, background-color 0.4s ease;
+.scor-game.is-present tbody tr.is-covered,
+.scor-game:fullscreen tbody tr.is-covered {
+  flex: 0 0 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.scor-game tbody tr.is-covered > * {
+.scor-game.is-present tbody tr.is-covered > *,
+.scor-game:fullscreen tbody tr.is-covered > *,
+.scor-game.is-present tbody tr.is-covered *,
+.scor-game:fullscreen tbody tr.is-covered * {
+  padding: 0;
+  border-width: 0;
+  height: 0;
+  font-size: 0;
+  line-height: 0;
   opacity: 0;
-  transform: translateY(0.6rem);
+  overflow: hidden;
+}
+
+.scor-game.is-present tbody tr.is-covered > *,
+.scor-game:fullscreen tbody tr.is-covered > * {
+  transform: translateY(0.4rem);
 }
 
 .scor-game .is-latest {
