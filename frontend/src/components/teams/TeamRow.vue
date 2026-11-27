@@ -18,6 +18,8 @@ const props = defineProps({
   coachCount: {type: Number, default: null},
   memberCount: {type: Number, default: null},
   coachNames: {type: Array, default: () => []},
+  /** Clash between this team and another team of the same coach: {status: 'red'|'yellow', title}. */
+  coachConflict: {type: Object, default: null},
   syncChangeLabel: {type: String, default: ''},
 })
 
@@ -142,8 +144,14 @@ function pendingTeamNumber(team: Record<string, unknown>): string {
           v-if="coachNames.length"
           class="team-row__coaches text-sm text-[var(--color-text-muted)] truncate min-w-0"
           :class="missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : ''"
-          :title="coachNames.join(', ')"
+          :title="coachConflict ? coachConflict.title : coachNames.join(', ')"
       >
+        <span
+            v-if="coachConflict"
+            class="team-row__coach-conflict"
+            :class="`team-row__coach-conflict--${coachConflict.status}`"
+            aria-hidden="true"
+        />
         <i class="bi bi-person-badge shrink-0 opacity-80 mr-1" aria-hidden="true"/>
         {{ coachNames.join(', ') }}
       </span>
@@ -222,6 +230,23 @@ function pendingTeamNumber(team: Record<string, unknown>): string {
 </template>
 
 <style scoped>
+.team-row__coach-conflict {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.3rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.team-row__coach-conflict--red {
+  background: #ef4444;
+}
+
+.team-row__coach-conflict--yellow {
+  background: #eab308;
+}
+
 .team-row__grid {
   display: grid;
   grid-template-columns:

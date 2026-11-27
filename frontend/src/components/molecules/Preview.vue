@@ -470,19 +470,17 @@ onBeforeUnmount(hideTeamTip)
 
 <template>
   <div class="flex flex-col gap-3 h-full min-h-0">
-    <div class="glass-panel-header !mb-0 shrink-0">
-      <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-          <PageTabs
-            compact
-            aria-label="Ansicht"
-            :tabs="mainViewTabs"
-            :model-value="view"
-            @update:model-value="selectView"
-          />
-        </div>
-
-        <div v-if="showAdminInline" class="flex flex-wrap items-center gap-1.5">
+    <div class="glass-panel-header !mb-0 shrink-0 flex-col !items-stretch">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        <PageTabs
+          compact
+          class="!mx-0"
+          aria-label="Ansicht"
+          :tabs="mainViewTabs"
+          :model-value="view"
+          @update:model-value="selectView"
+        />
+        <template v-if="showAdminInline">
           <span
             class="text-[var(--color-text-muted)]"
             title="Admin"
@@ -492,24 +490,28 @@ onBeforeUnmount(hideTeamTip)
           </span>
           <PageTabs
             compact
+            class="!mx-0"
             aria-label="Admin-Ansicht"
             :tabs="adminViewTabs"
             :model-value="view"
             @update:model-value="selectView"
           />
-          <button
-            type="button"
-            class="glass-btn-accent"
-            :disabled="!canRegeneratePlan"
-            title="Ablauf sofort neu generieren (ohne ausstehende Parameter-Änderungen)"
-            @click="onRegeneratePlan"
-          >Neu generieren</button>
-        </div>
+        </template>
       </div>
 
-      <p v-if="!hideMeta" class="glass-settings-hint !not-italic shrink-0 m-0">
-        Plan ID: {{ effectivePlanId }}
-      </p>
+      <div v-if="showAdminInline || !hideMeta" class="flex flex-wrap items-center justify-end gap-3">
+        <p v-if="!hideMeta" class="glass-settings-hint !not-italic shrink-0 m-0">
+          Plan ID: {{ effectivePlanId }}
+        </p>
+        <button
+          v-if="showAdminInline"
+          type="button"
+          class="glass-btn-accent"
+          :disabled="!canRegeneratePlan"
+          title="Ablauf sofort neu generieren (ohne ausstehende Parameter-Änderungen)"
+          @click="onRegeneratePlan"
+        >Neu generieren</button>
+      </div>
     </div>
 
     <p
