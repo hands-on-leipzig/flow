@@ -6,15 +6,27 @@ const props = defineProps<{eventId: string | number, payload?: any, title?: stri
 const emit = defineEmits<{exit: []}>()
 const results = ref<any>(props.payload || null)
 const error = ref('')
+const tab = ref<'gesamt' | 'spiel'>('gesamt')
 
-const placeLabels: Record<string, string> = {champion: 'Champion', silver: 'Silber', bronze: 'Bronze'}
+const placeLabels: Record<string, string> = {champion: '1. Platz', silver: '2. Platz', bronze: '3. Platz'}
 const categoryLabels: Record<string, string> = {
   research: 'Projekt',
   robotdesign: 'Technisches Design',
   core_values: 'Grundwerte',
 }
 
-const gameLeaders = computed(() => (results.value?.game || []).filter((team: any) => team.rank === 1))
+const awards = computed(() => results.value?.awards || null)
+const game = computed(() => results.value?.game || {rounds: [], teams: []})
+
+const roundBest = computed(() => {
+  const best: Record<number, number> = {}
+  for (const team of game.value.teams) {
+    for (const cell of team.rounds || []) {
+      if (cell && cell.points > 0 && cell.points > (best[cell.round] ?? 0)) best[cell.round] = cell.points
+    }
+  }
+  return best
+})
 
 onMounted(async () => {
   if (results.value) return
@@ -34,8 +46,8 @@ function roundPoints(team: any, round: number) {
   return (team.rounds || []).find((cell: any) => cell && cell.round === round)?.points ?? null
 }
 
-function formatPoints(value: number) {
-  if (!Number.isFinite(value)) return '–'
+function formatPoints(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return '–'
   if (Number.isInteger(value)) return String(value)
   return value.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})
 }
@@ -57,10 +69,33 @@ function formatPoints(value: number) {
     <p v-else-if="!results" class="scor-public__state">Wird geladen …</p>
 
     <template v-else>
-      <section class="glass-card liquid-surface-inner scor-public__section">
+      <div class="glass-segment scor-public__tabs" role="tablist" aria-label="Ergebnisse">
+        <button
+            type="button"
+            role="tab"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': tab === 'gesamt'}"
+            :aria-selected="tab === 'gesamt'"
+            @click="tab = 'gesamt'"
+        >
+          Gesamtergebnis
+        </button>
+        <button
+            type="button"
+            role="tab"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': tab === 'spiel'}"
+            :aria-selected="tab === 'spiel'"
+            @click="tab = 'spiel'"
+        >
+          Spiel
+        </button>
+      </div>
+
+      <section v-if="tab === 'gesamt'" class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
         <h2>Auszeichnungen</h2>
-        <ul v-if="results.podium.length" class="scor-public__podium">
-          <li v-for="entry in results.podium" :key="entry.place" :class="`is-${entry.place}`">
+        <ul v-if="awards.podium.length" class="scor-public__podium">
+          <li v-for="entry in awards.podium" :key="entry.place" :class="`is-${entry.place}`">
             <i class="bi bi-trophy-fill" aria-hidden="true"/>
             <span class="scor-public__label">{{ placeLabels[entry.place] }}</span>
             <strong>{{ teamLine(entry.team) }}</strong>
@@ -68,42 +103,47 @@ function formatPoints(value: number) {
         </ul>
 
         <div class="scor-public__categories">
-          <article v-for="category in results.categories" :key="category.category" class="scor-public__category">
+          <article v-for="category in awards.categories" :key="category.category" class="scor-public__category">
             <h3>{{ categoryLabels[category.category] || category.category }}</h3>
+            <p class="scor-public__label">Nominiert</p>
             <ul v-if="category.nominees.length">
-              <li v-for="team in category.nominees" :key="team.number" :class="{'has-trophy': team.trophy}">
-                <i class="bi" :class="team.trophy ? 'bi-trophy-fill' : 'bi-star-fill'" aria-hidden="true"/>
+              <li v-for="team in category.nominees" :key="team.number">
+                <i class="bi bi-star-fill" aria-hidden="true"/>
                 <span>{{ teamLine(team) }}</span>
-                <span v-if="team.trophy" class="scor-public__badge">Pokal</span>
               </li>
             </ul>
             <p v-else class="scor-public__muted">Keine Nominierung.</p>
+            <template v-if="category.winner">
+              <p class="scor-public__label scor-public__label--award">Auszeichnung</p>
+              <p class="scor-public__winner">
+                <i class="bi bi-trophy-fill" aria-hidden="true"/>
+                <span>{{ teamLine(category.winner) }}</span>
+              </p>
+            </template>
           </article>
 
-          <article v-if="results.coaching" class="scor-public__category">
+          <article v-if="awards.coaching" class="scor-public__category">
             <h3>Coaching</h3>
-            <ul>
-              <li class="has-trophy">
-                <i class="bi bi-trophy-fill" aria-hidden="true"/>
-                <span>{{ teamLine(results.coaching) }}</span>
-              </li>
-            </ul>
+            <p class="scor-public__label scor-public__label--award">Auszeichnung</p>
+            <p class="scor-public__winner">
+              <i class="bi bi-trophy-fill" aria-hidden="true"/>
+              <span>{{ teamLine(awards.coaching) }}</span>
+            </p>
           </article>
 
-          <article v-if="gameLeaders.length" class="scor-public__category">
+          <article v-if="awards.game.length" class="scor-public__category">
             <h3>Spiel</h3>
-            <ul>
-              <li v-for="team in gameLeaders" :key="team.number" class="has-trophy">
-                <i class="bi bi-trophy-fill" aria-hidden="true"/>
-                <span>{{ teamLine(team) }}</span>
-              </li>
-            </ul>
+            <p class="scor-public__label scor-public__label--award">Auszeichnung</p>
+            <p v-for="team in awards.game" :key="team.number" class="scor-public__winner">
+              <i class="bi bi-trophy-fill" aria-hidden="true"/>
+              <span>{{ teamLine(team) }}</span>
+            </p>
           </article>
         </div>
         <p class="scor-public__muted">Nominierte Teams stehen nach Teamnummer.</p>
       </section>
 
-      <section class="glass-card liquid-surface-inner scor-public__section">
+      <section v-else class="glass-card liquid-surface-inner scor-public__section" role="tabpanel">
         <h2>Spiel</h2>
         <div class="scor-public__table">
           <table>
@@ -111,24 +151,35 @@ function formatPoints(value: number) {
               <tr>
                 <th scope="col">Platz</th>
                 <th scope="col">Team</th>
-                <th v-for="round in results.rounds" :key="round.round" scope="col">{{ round.label }}</th>
+                <th v-for="round in game.rounds" :key="round.round" scope="col">{{ round.label }}</th>
+                <th scope="col">Bester Lauf</th>
                 <th scope="col">Punktedurchschnitt</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="team in results.game" :key="team.number">
+              <tr v-for="team in game.teams" :key="team.number">
                 <td class="scor-public__rank">{{ team.rank }}</td>
                 <th scope="row">
                   <span class="scor-public__team">{{ team.name }}</span>
                   <span class="scor-public__muted">{{ team.number }}</span>
                 </th>
-                <td v-for="round in results.rounds" :key="round.round">{{ roundPoints(team, round.round) ?? '–' }}</td>
+                <td
+                    v-for="round in game.rounds"
+                    :key="round.round"
+                    :class="{'is-round-best': roundPoints(team, round.round) !== null && roundPoints(team, round.round) === roundBest[round.round]}"
+                >
+                  {{ roundPoints(team, round.round) ?? '–' }}
+                </td>
+                <td>{{ formatPoints(team.best) }}</td>
                 <td class="scor-public__average">ø {{ formatPoints(team.average) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="scor-public__muted">Der Punktedurchschnitt zählt eine fehlende Runde als 0.</p>
+        <p class="scor-public__muted">
+          Der Platz folgt dem Punktedurchschnitt aller Wertungsrunden. Eine fehlende Runde zählt als 0.
+          Hervorgehoben ist das höchste Ergebnis jeder Runde.
+        </p>
       </section>
     </template>
   </div>
@@ -174,6 +225,10 @@ function formatPoints(value: number) {
 
 .scor-public__state {
   font-size: 1.1rem;
+}
+
+.scor-public__tabs {
+  align-self: flex-start;
 }
 
 .scor-public__section {
@@ -228,9 +283,14 @@ function formatPoints(value: number) {
 }
 
 .scor-public__label {
+  margin: 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   font-weight: 700;
+}
+
+.scor-public__label--award {
+  margin-top: 0.75rem;
 }
 
 .scor-public__categories {
@@ -240,13 +300,16 @@ function formatPoints(value: number) {
 }
 
 .scor-public__category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
 }
 
 .scor-public__category h3 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.25rem;
   font-size: 1rem;
   font-weight: 800;
 }
@@ -270,22 +333,16 @@ function formatPoints(value: number) {
   color: #b45309;
 }
 
-.scor-public__category li.has-trophy {
+.scor-public__winner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
   font-weight: 800;
 }
 
-.scor-public__category li.has-trophy .bi {
+.scor-public__winner .bi {
   color: #146c36;
-}
-
-.scor-public__badge {
-  margin-left: auto;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, #146c36 14%, transparent);
-  color: #146c36;
-  font-size: 0.75rem;
-  font-weight: 800;
 }
 
 .scor-public__muted {
@@ -315,6 +372,11 @@ function formatPoints(value: number) {
 .scor-public__table thead th {
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.scor-public__table td.is-round-best {
+  font-weight: 800;
+  color: #146c36;
 }
 
 .scor-public__team {

@@ -738,9 +738,10 @@ function formatPoints(value: number) {
         </div>
         <p v-if="results.lifecycle.closed && !results.lifecycle.released" class="scor-results__note">
           Die Auswertung ist festgeschrieben. Änderungen sind nicht mehr möglich. Öffentlich sichtbar ist sie noch nicht.
+          <template v-if="!results.flow_admin">Veröffentlichen kann nur ein FLOW-Admin.</template>
         </p>
         <button
-            v-if="results.lifecycle.closed && !results.lifecycle.released"
+            v-if="results.flow_admin && results.lifecycle.closed && !results.lifecycle.released"
             type="button"
             class="scor-finalize"
             @click="publishOpen = true"

@@ -177,6 +177,7 @@ Route::prefix('cockpit/{slug}')->group(function () {
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
     Route::get('/score', [ContaoController::class, 'getScore']);
+    Route::get('/public/results-links/{eventId}', [ContaoController::class, 'resultLinks'])->whereNumber('eventId');
 });
 
 Route::post('/scor/login', [ScorController::class, 'login']);

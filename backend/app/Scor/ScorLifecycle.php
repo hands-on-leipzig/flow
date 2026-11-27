@@ -40,13 +40,15 @@ final class ScorLifecycle
 
     public function release(User $user, int $eventId): array
     {
+        if (!$user->isFlowAdmin()) {
+            throw new ScorAccessException('Veröffentlichen kann nur ein FLOW-Admin.');
+        }
         if (!$this->state($eventId)['closed']) {
             throw new ScorAccessException('Zuerst wird die Auswertung festgeschrieben.', 422);
         }
         if ($this->playground($eventId)) {
             throw new ScorAccessException('Während der Spielwiese wird nichts veröffentlicht.', 422);
         }
-        $this->assertEventAdmin($user, $eventId);
         $this->touch($eventId, ['released_at' => now()]);
 
         return $this->state($eventId);
