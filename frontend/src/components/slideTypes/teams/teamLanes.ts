@@ -32,7 +32,9 @@ export async function loadVenuePoint(eventId: number): Promise<{lat: number, lon
         if (address === '') {
             return null;
         }
-        const point = await axios.get('/geocode', {params: {address}});
+        const point = await axios.get('/geocode', {
+            params: {address, country: data?.country || undefined},
+        });
         const lat = Number(point.data?.lat);
         const lon = Number(point.data?.lon);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) {

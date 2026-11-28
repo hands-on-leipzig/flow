@@ -185,6 +185,7 @@ const flowRoutes = [
             {path: 'slots', redirect: '/plan/schedule/slots'},
             {path: 'profile', component: Profile},
             {path: 'access', component: AccessManagement},
+            {path: 'event-admin', redirect: '/plan/admin/event-admin'},
             // Lazy-load Admin — one component for all sections so tab state stays mounted
             {path: 'admin', redirect: `/plan/admin/${ADMIN_DEFAULT_SECTION}`},
             {path: 'admin/:section', component: () => import('@/components/Admin.vue')},
@@ -364,11 +365,24 @@ router.beforeEach(async (to, from, next) => {
         await useProgramsStore().ensureLoaded()
     }
 
+    if (to.path === '/plan/admin/event-admin' || to.path === '/plan/event-admin') {
+        const parsed = keycloak.tokenParsed || {}
+        const roles = [
+            ...(parsed.realm_access?.roles || []),
+            ...(parsed.resource_access?.flow?.roles || []),
+        ]
+        if (!roles.includes('flow_admin') && !roles.includes('flow-admin')) {
+            next('/plan/overview')
+            return
+        }
+    }
+
     // Check if event is selected for non-public routes (pop-outs carry their own plan id)
     if (
         !to.meta?.popout &&
         to.path !== '/plan/profile' &&
         to.path !== '/plan/access' &&
+        to.path !== '/plan/admin/event-admin' &&
         to.path.startsWith('/plan')
     ) {
         // Use the store - pinia is already active

@@ -170,6 +170,9 @@ const showBackToOverview = computed(() => isAdminMode.value)
 
 const scorNavEntries = computed<NavEntry[]>(() => [
   {name: 'Veranstaltungen', path: scorePath(), icon: 'bi-calendar-event'},
+  ...(isAdmin.value
+    ? [{name: 'SCORE-Administration', path: '/plan/admin/event-admin', icon: 'bi-shield-lock'}]
+    : []),
 ])
 
 const wiseCollapsed = ref(true)

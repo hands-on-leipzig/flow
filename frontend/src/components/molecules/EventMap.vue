@@ -19,6 +19,11 @@ const props = defineProps({
     type: String,
     default: 'Veranstaltungsort'
   },
+  /** ISO country of the venue (de, at, ch). Selects which postal-code rules the search uses. */
+  country: {
+    type: String,
+    default: ''
+  },
   showQRCode: {
     type: Boolean,
     default: false
@@ -49,13 +54,14 @@ let copySuccessTimeout = null
 // Geocode address using backend API (proxies to OpenStreetMap Nominatim API).
 // The backend falls back to coarser variants of the address on its own and
 // reports which variant it matched in `query`.
-const geocodeAddress = async (address) => {
+const geocodeAddress = async (address, country) => {
   if (!address) return null
 
   try {
     const response = await axios.get('/geocode', {
       params: {
-        address: address
+        address: address,
+        country: country || undefined
       }
     })
 
@@ -86,7 +92,7 @@ const resolveAddressCoordinates = async (address) => {
   const requestId = ++geocodeRequestId
   isResolvingAddress.value = true
 
-  const coords = await geocodeAddress(address)
+  const coords = await geocodeAddress(address, props.country)
 
   if (requestId !== geocodeRequestId) {
     return
@@ -132,8 +138,8 @@ const mapMarkers = computed(() => {
 })
 
 // Watch for address changes to initialize map
-watch(() => props.address, async (newAddress) => {
-  await resolveAddressCoordinates(newAddress)
+watch(() => [props.address, props.country], async () => {
+  await resolveAddressCoordinates(props.address)
 }, {immediate: true})
 
 onMounted(() => {

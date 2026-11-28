@@ -344,7 +344,7 @@ class ScorSheetServiceTest extends TestCase
             $table->timestamp('playground_reset_at')->nullable();
             $table->text('mail_body')->nullable();
         });
-        DB::table('event')->where('id', 1)->update(['date' => now()->addDay()->toDateString()]);
+        DB::table('event')->where('id', 1)->update(['date' => now('Europe/Berlin')->addDay()->toDateString()]);
         DB::table('scor_sheet')->insert([
             'event' => 1,
             'kind' => 'referee',
@@ -356,6 +356,64 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame(1, (new \App\Scor\ScorLifecycle())->resetPlaygroundDue());
         $this->assertSame(0, DB::table('scor_sheet')->count());
         $this->assertNotNull(DB::table('scor_event')->where('event', 1)->value('playground_reset_at'));
+    }
+
+    public function test_only_a_flow_admin_releases_and_resets_from_event_administration(): void
+    {
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->timestamp('playground_reset_at')->nullable();
+            $table->text('mail_body')->nullable();
+        });
+        $this->createAwardTable();
+        DB::table('event')->where('id', 1)->update(['date' => now()->toDateString()]);
+        DB::table('scor_award')->insert(['event' => 1, 'team' => 1, 'category' => 'champion', 'kind' => 'trophy']);
+        DB::table('scor_sheet')->insert($this->refereeRow(1, 1, 40, true));
+        $life = new \App\Scor\ScorLifecycle();
+
+        $this->sheets->closeEvent($this->user(), 1);
+        try {
+            $life->release($this->user(), 1);
+            $this->fail('Veranstaltung-Admin gibt Ergebnisse nicht frei.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(403, $e->status);
+        }
+        try {
+            $life->resetEvaluations($this->user(), 1);
+            $this->fail('Veranstaltung-Admin löscht keine Bewertungen.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(403, $e->status);
+        }
+
+        request()->attributes->set('jwt', ['realm_access' => ['roles' => ['flow_admin']]]);
+        DB::table('scor_event')->where('event', 1)->update(['closed_at' => null]);
+        try {
+            $life->release($this->user(), 1);
+            $this->fail('Ohne finale Bestätigung gibt es keine Freigabe.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(422, $e->status);
+        }
+
+        $this->sheets->closeEvent($this->user(), 1);
+        $released = $life->release($this->user(), 1);
+        $this->assertTrue($released['released']);
+        $this->assertTrue($released['closed']);
+
+        $withdrawn = $life->withdrawRelease($this->user(), 1);
+        $this->assertFalse($withdrawn['released']);
+        $this->assertTrue($withdrawn['closed']);
+
+        $table = $life->resetTable($this->user(), 1);
+        $this->assertFalse($table['closed']);
+        $this->assertFalse($table['released']);
+        $this->assertSame(0, DB::table('scor_award')->count());
+        $this->assertSame(1, DB::table('scor_sheet')->count());
+
+        $wiped = $life->resetEvaluations($this->user(), 1);
+        $this->assertFalse($wiped['closed']);
+        $this->assertSame(0, DB::table('scor_sheet')->count());
     }
 
     public function test_noteworthy_teams_can_be_sent_on_stage_only_up_to_the_flow_count(): void
