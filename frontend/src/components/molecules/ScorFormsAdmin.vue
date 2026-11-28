@@ -4,6 +4,7 @@ import axios from 'axios'
 import PageTabs from '@hands-on/glass/page-tabs'
 
 type Item = {
+  key: number
   item_type: string
   label: string
   hint: string
@@ -12,6 +13,7 @@ type Item = {
 }
 
 type Section = {
+  key: number
   title: string
   kind: string
   note: string
@@ -32,27 +34,40 @@ const kind = ref<'jury' | 'referee'>('jury')
 const error = ref('')
 const notice = ref('')
 const busy = ref(false)
+let nextKey = 1
 
 const current = () => forms.value.find((form) => form.kind === kind.value)
 
+function freshKey() {
+  return nextKey++
+}
+
+function stamp(list: Form[]) {
+  for (const form of list) {
+    for (const section of form.sections || []) {
+      section.key ||= freshKey()
+      for (const item of section.items || []) item.key ||= freshKey()
+    }
+  }
+}
+
 function blankItem(type: string): Item {
+  const base = {key: freshKey(), label: '', hint: '', core_value: false}
   if (type === 'choice') {
-    return {item_type: type, label: '', hint: '', core_value: false, config: {options: [{label: '', points: 0}]}}
+    return {...base, item_type: type, config: {options: [{label: '', points: 0}]}}
   }
   if (type === 'count') {
-    return {item_type: type, label: '', hint: '', core_value: false, config: {max: 1, points_each: 1}}
+    return {...base, item_type: type, config: {max: 1, points_each: 1}}
   }
   if (type === 'rubric') {
-    return {item_type: type, label: '', hint: '', core_value: false, config: {group: '', group_hint: '', cells: ['', '', '']}}
+    return {...base, item_type: type, config: {group: '', group_hint: '', cells: ['', '', '']}}
   }
   if (type === 'text') {
-    return {item_type: type, label: '', hint: '', core_value: false, config: null}
+    return {...base, item_type: type, config: null}
   }
   return {
+    ...base,
     item_type: 'yes_no',
-    label: '',
-    hint: '',
-    core_value: false,
     config: {yes_label: 'Ja', yes_points: 0, no_label: 'Nein', no_points: 0},
   }
 }
@@ -65,6 +80,7 @@ async function load() {
     seasonId.value = data.season
     columns.value = data.columns || []
     forms.value = data.forms || []
+    stamp(forms.value)
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Bögen konnten nicht geladen werden.'
   }
@@ -74,11 +90,28 @@ function addSection() {
   const form = current()
   if (!form) return
   form.sections.push({
+    key: freshKey(),
     title: kind.value === 'jury' ? 'Neuer Abschnitt' : 'Neue Mission',
     kind: kind.value === 'jury' ? 'rubric' : 'mission',
     note: '',
     items: [],
   })
+}
+
+function moveSection(index: number, delta: number) {
+  const form = current()
+  if (!form) return
+  const next = index + delta
+  if (next < 0 || next >= form.sections.length) return
+  const [row] = form.sections.splice(index, 1)
+  form.sections.splice(next, 0, row)
+}
+
+function moveItem(section: Section, index: number, delta: number) {
+  const next = index + delta
+  if (next < 0 || next >= section.items.length) return
+  const [row] = section.items.splice(index, 1)
+  section.items.splice(next, 0, row)
 }
 
 function addRow(section: Section) {
@@ -88,6 +121,7 @@ function addRow(section: Section) {
 
 function changeType(item: Item, type: string) {
   const next = blankItem(type)
+  next.key = item.key
   next.label = item.label
   Object.assign(item, next)
 }
@@ -101,7 +135,10 @@ async function save() {
   try {
     const {data} = await axios.put(`/admin/scor-forms/${form.id}`, {sections: form.sections})
     const index = forms.value.findIndex((entry) => entry.id === form.id)
-    if (index >= 0) forms.value[index] = data
+    if (index >= 0) {
+      stamp([data])
+      forms.value[index] = data
+    }
     notice.value = 'Bogen gespeichert.'
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Speichern fehlgeschlagen.'
@@ -150,15 +187,31 @@ onMounted(() => {
     <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
     <p v-if="notice" class="text-sm text-[var(--color-text-muted)]">{{ notice }}</p>
 
-    <section v-for="(section, sectionIndex) in current()?.sections || []" :key="sectionIndex" class="glass-card liquid-surface-inner space-y-3 p-4">
-      <div class="flex flex-wrap gap-2">
+    <section v-for="(section, sectionIndex) in current()?.sections || []" :key="section.key" class="glass-card liquid-surface-inner space-y-3 p-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="scor-move">
+          <button type="button" :disabled="sectionIndex === 0" aria-label="Abschnitt nach oben" @click="moveSection(sectionIndex, -1)">
+            <i class="bi bi-chevron-up" aria-hidden="true"/>
+          </button>
+          <button type="button" :disabled="sectionIndex === (current()?.sections.length || 1) - 1" aria-label="Abschnitt nach unten" @click="moveSection(sectionIndex, 1)">
+            <i class="bi bi-chevron-down" aria-hidden="true"/>
+          </button>
+        </div>
         <input v-model="section.title" class="glass-input glass-input--sm flex-1" placeholder="Überschrift"/>
         <button type="button" class="text-sm text-red-700" @click="current()?.sections.splice(sectionIndex, 1)">Abschnitt entfernen</button>
       </div>
       <textarea v-model="section.note" class="glass-input w-full" rows="2" placeholder="Hinweis"/>
 
-      <div v-for="(item, itemIndex) in section.items" :key="itemIndex" class="space-y-2 rounded-lg border border-[var(--color-border)] p-3">
-        <div class="flex flex-wrap gap-2">
+      <div v-for="(item, itemIndex) in section.items" :key="item.key" class="space-y-2 rounded-lg border border-[var(--color-border)] p-3">
+        <div class="flex flex-wrap items-start gap-2">
+          <div class="scor-move">
+            <button type="button" :disabled="itemIndex === 0" aria-label="Frage nach oben" @click="moveItem(section, itemIndex, -1)">
+              <i class="bi bi-chevron-up" aria-hidden="true"/>
+            </button>
+            <button type="button" :disabled="itemIndex === section.items.length - 1" aria-label="Frage nach unten" @click="moveItem(section, itemIndex, 1)">
+              <i class="bi bi-chevron-down" aria-hidden="true"/>
+            </button>
+          </div>
           <textarea v-model="item.label" class="glass-input glass-input--sm flex-1" rows="2" :placeholder="item.item_type === 'rubric' ? 'erste Zellbeschriftung' : 'Frage'"/>
           <select v-if="section.kind === 'mission'" v-model="item.item_type" class="glass-input glass-input--sm" @change="changeType(item, item.item_type)">
             <option value="yes_no">Ja/Nein</option>
@@ -209,3 +262,31 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.scor-move {
+  display: flex;
+  flex-direction: column;
+}
+
+.scor-move button {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.scor-move button:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.scor-move button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+</style>

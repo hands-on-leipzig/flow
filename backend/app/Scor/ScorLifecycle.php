@@ -45,7 +45,7 @@ final class ScorLifecycle
             throw new ScorAccessException('Veröffentlichen kann nur ein FLOW-Admin.');
         }
         if (!$this->state($eventId)['closed']) {
-            throw new ScorAccessException('Zuerst wird die Auswertung festgeschrieben.', 422);
+            throw new ScorAccessException('Zuerst bestätigt der Veranstalter die Ergebnisse als final.', 422);
         }
         if ($this->playgroundLocks($eventId)) {
             throw new ScorAccessException('Während der Spielwiese wird nichts veröffentlicht.', 422);
@@ -62,6 +62,50 @@ final class ScorLifecycle
             throw new ScorAccessException('Nach der Veröffentlichung nimmt nur ein FLOW-Admin die Auswertung zurück.', 422);
         }
         $this->touch($eventId, ['closed_at' => null, 'released_at' => null]);
+
+        return $this->state($eventId);
+    }
+
+    /**
+     * Take the public page down. The final confirmation stays.
+     */
+    public function withdrawRelease(User $user, int $eventId): array
+    {
+        $this->assertFlowAdmin($user);
+        $this->assertEvent($eventId);
+        $this->touch($eventId, ['released_at' => null]);
+
+        return $this->state($eventId);
+    }
+
+    /**
+     * Clear trophies and nominations and open the table again. Sheets stay.
+     */
+    public function resetTable(User $user, int $eventId): array
+    {
+        $this->assertFlowAdmin($user);
+        $this->assertEvent($eventId);
+        if (Schema::hasTable('scor_award')) {
+            DB::table('scor_award')->where('event', $eventId)->delete();
+        }
+        $this->touch($eventId, ['closed_at' => null, 'released_at' => null]);
+
+        return $this->state($eventId);
+    }
+
+    /**
+     * Wipe every SCORE sheet, award and stage pick for one event.
+     */
+    public function resetEvaluations(User $user, int $eventId): array
+    {
+        $this->assertFlowAdmin($user);
+        $this->assertEvent($eventId);
+        $this->wipeScores($eventId);
+        $this->touch($eventId, [
+            'closed_at' => null,
+            'released_at' => null,
+            'playground_reset_at' => null,
+        ]);
 
         return $this->state($eventId);
     }
@@ -134,7 +178,7 @@ final class ScorLifecycle
         if (!Schema::hasTable('event')) {
             return 0;
         }
-        $tomorrow = now()->addDay()->toDateString();
+        $tomorrow = now('Europe/Berlin')->addDay()->toDateString();
         $events = DB::table('event')->whereDate('date', $tomorrow)->pluck('id');
         $count = 0;
         foreach ($events as $eventId) {
@@ -142,11 +186,7 @@ final class ScorLifecycle
             if ($row?->playground_reset_at) {
                 continue;
             }
-            foreach (['scor_sheet', 'scor_noteworthy', 'scor_stage_pick', 'scor_award'] as $table) {
-                if (Schema::hasTable($table)) {
-                    DB::table($table)->where('event', $eventId)->delete();
-                }
-            }
+            $this->wipeScores((int) $eventId);
             $this->touch((int) $eventId, ['playground_reset_at' => now(), 'closed_at' => null, 'released_at' => null]);
             $count++;
         }
@@ -170,6 +210,29 @@ final class ScorLifecycle
     private function playgroundLocks(int $eventId): bool
     {
         return $this->playground($eventId) && !ScorMockData::available();
+    }
+
+    private function wipeScores(int $eventId): void
+    {
+        foreach (['scor_sheet', 'scor_noteworthy', 'scor_stage_pick', 'scor_award'] as $table) {
+            if (Schema::hasTable($table)) {
+                DB::table($table)->where('event', $eventId)->delete();
+            }
+        }
+    }
+
+    private function assertFlowAdmin(User $user): void
+    {
+        if (!$user->isFlowAdmin()) {
+            throw new ScorAccessException('Das geht nur als FLOW-Admin.');
+        }
+    }
+
+    private function assertEvent(int $eventId): void
+    {
+        if (!DB::table('event')->where('id', $eventId)->exists()) {
+            throw new ScorAccessException('Veranstaltung nicht gefunden.', 404);
+        }
     }
 
     private function assertEventAdmin(User $user, int $eventId): void

@@ -161,6 +161,9 @@ const navEntries = computed<NavEntry[]>(() => [
       {name: 'Cockpit', path: '/plan/live/cockpit', icon: 'bi-speedometer2'},
     ],
   },
+  ...(isAdmin.value
+    ? [{name: 'Administration der Events', path: '/plan/event-admin', icon: 'bi-shield-lock'}]
+    : []),
 ])
 
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))

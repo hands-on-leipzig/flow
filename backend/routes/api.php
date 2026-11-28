@@ -57,6 +57,7 @@ use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\ScorAdminController;
+use App\Http\Controllers\Api\ScorEventAdminController;
 use App\Http\Controllers\Api\ScorController;
 use App\Http\Controllers\Api\ScorFormAdminController;
 use App\Http\Controllers\Api\SeasonPlanBulkController;
@@ -478,6 +479,11 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/admin/scor/events', [ScorAdminController::class, 'events']);
+    Route::get('/admin/event-admin', [ScorEventAdminController::class, 'index']);
+    Route::post('/admin/event-admin/{eventId}/release', [ScorEventAdminController::class, 'release']);
+    Route::post('/admin/event-admin/{eventId}/withdraw', [ScorEventAdminController::class, 'withdraw']);
+    Route::post('/admin/event-admin/{eventId}/reset-table', [ScorEventAdminController::class, 'resetTable']);
+    Route::post('/admin/event-admin/{eventId}/reset-scores', [ScorEventAdminController::class, 'resetScores']);
     Route::get('/admin/scor/events/{eventId}/helpers', [ScorAdminController::class, 'helpers']);
     Route::post('/admin/scor/events/{eventId}/helpers', [ScorAdminController::class, 'grantHelper']);
     Route::get('/admin/scor/log', [ScorAdminController::class, 'log']);
