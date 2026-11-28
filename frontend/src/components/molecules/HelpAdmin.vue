@@ -444,7 +444,8 @@ onMounted(() => {
 
       <PanelSplitter
           v-model="assignLeftWidth"
-          class="hidden lg:flex help-admin__splitter"
+          class="help-admin__splitter"
+          from="lg"
           :min="40"
           :max="80"
           storage-key="flow-help-assign-split"
@@ -553,7 +554,8 @@ onMounted(() => {
 
       <PanelSplitter
           v-model="leftWidth"
-          class="hidden lg:flex help-admin__splitter"
+          class="help-admin__splitter"
+          from="lg"
           :min="24"
           :max="60"
           storage-key="flow-help-split"
