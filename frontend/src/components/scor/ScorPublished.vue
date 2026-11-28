@@ -28,6 +28,11 @@ function selectTab(id: string | number) {
 }
 
 const awards = computed(() => results.value?.awards || null)
+const coachingTeams = computed(() => {
+  const value = awards.value?.coaching
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
+})
 const game = computed(() => results.value?.game || {rounds: [], teams: []})
 
 const roundBest = computed(() => {
@@ -126,13 +131,15 @@ function formatPoints(value: number | null) {
             </template>
           </article>
 
-          <article v-if="awards.coaching" class="scor-public__category">
+          <article v-if="coachingTeams.length" class="scor-public__category">
             <h3>Coaching</h3>
             <p class="scor-public__label scor-public__label--award">Pokal</p>
-            <p class="scor-public__winner">
-              <i class="bi bi-trophy-fill" aria-hidden="true"/>
-              <span>{{ teamLine(awards.coaching) }}</span>
-            </p>
+            <ul class="scor-public__coaching">
+              <li v-for="team in coachingTeams" :key="team.number">
+                <i class="bi bi-trophy-fill" aria-hidden="true"/>
+                <span>{{ teamLine(team) }}</span>
+              </li>
+            </ul>
           </article>
 
           <article v-if="awards.game.length" class="scor-public__category scor-public__category--wide">
@@ -437,6 +444,27 @@ function formatPoints(value: number | null) {
 
 .scor-public__category li .bi {
   color: #b45309;
+}
+
+.scor-public__coaching {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scor-public__coaching li {
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, #146c36 10%, transparent);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.scor-public__category .scor-public__coaching .bi {
+  color: #146c36;
 }
 
 .scor-public__winner {

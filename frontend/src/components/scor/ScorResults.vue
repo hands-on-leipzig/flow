@@ -12,7 +12,18 @@ const resetOpen = ref(false)
 const reopenOpen = ref(false)
 const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
-const coaching = ref<number | ''>('')
+const coachingTeams = ref<number[]>([])
+
+type CoachTeam = {id: number, name: string, number: string}
+type CoachOption = {key: string, name: string, teams: CoachTeam[]}
+
+const coachOptions = ref<CoachOption[]>([])
+const coachOpen = ref(false)
+const coachHint = ref('')
+const coachAnchor = ref<HTMLElement | null>(null)
+const coachMenu = ref<HTMLElement | null>(null)
+const coachMenuStyle = ref<Record<string, string>>({})
+let loadedDrahtId = -1
 
 const podium = [
   {id: 'champion', label: 'Champion'},
@@ -73,7 +84,7 @@ function heldCategoryTrophy(teamId: number) {
 }
 
 function hasTrophy(teamId: number, category: string) {
-  if (category === 'coaching') return coaching.value === teamId
+  if (category === 'coaching') return coachingTeams.value.includes(teamId)
   return marked(trophies.value, teamId, category)
 }
 
@@ -90,13 +101,13 @@ function canNominate(category: string, teamId: number) {
 function trophyCount(teamId: number) {
   const cups = trophies.value.filter((row) => row.team === teamId).length
   const spiel = spielTrophy().some((row) => row.team === teamId) ? 1 : 0
-  return cups + spiel + (coaching.value === teamId ? 1 : 0)
+  return cups + spiel + (coachingTeams.value.includes(teamId) ? 1 : 0)
 }
 
 const podiumSlots = computed(() => Math.min(podium.length, awardTeams.value.length))
 
 const awardsComplete = computed(() => {
-  if (!nominationsReady.value || !coaching.value) return false
+  if (!nominationsReady.value || coachingTeams.value.length < 1) return false
   if (trophies.value.filter((row) => podiumIds.includes(row.category)).length < podiumSlots.value) return false
   return ['research', 'robotdesign', 'core_values'].every((id) => trophies.value.some((row) => row.category === id))
 })
@@ -193,18 +204,79 @@ function toggleNomination(teamId: number, category: string) {
   })
 }
 
-function toggleAward(team: any, category: string) {
-  if (!canAward(team, category)) return
-  const on = hasTrophy(team.id, category)
-  if (category === 'coaching') {
-    coaching.value = on ? '' : team.id
-    return
+function trophiesBesidesCoaching(teamId: number) {
+  const cups = trophies.value.filter((row) => row.team === teamId).length
+  const spiel = spielTrophy().some((row) => row.team === teamId) ? 1 : 0
+  return cups + spiel
+}
+
+function sameCoachTeams(coach: CoachOption) {
+  const picked = [...coachingTeams.value].sort((a, b) => a - b).join(',')
+  const offered = coach.teams.map((team) => team.id).sort((a, b) => a - b).join(',')
+  return picked !== '' && picked === offered
+}
+
+function canPickCoach(coach: CoachOption) {
+  if (!awardsEditable.value) return false
+  if (sameCoachTeams(coach)) return true
+  return coach.teams.every((team) => trophiesBesidesCoaching(team.id) < 3)
+}
+
+function setCoachAnchor(id: string, node: unknown) {
+  if (id !== 'coaching') return
+  coachAnchor.value = node instanceof HTMLElement ? node : null
+}
+
+function placeCoachMenu() {
+  const rect = coachAnchor.value?.getBoundingClientRect()
+  if (!rect) return
+  const width = 18 * 16
+  coachMenuStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 4}px`,
+    left: `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`,
+    width: `${width}px`,
+    zIndex: '13000',
   }
+}
+
+function openCoachMenu() {
+  if (!awardsEditable.value || coachOptions.value.length < 1) return
+  placeCoachMenu()
+  coachOpen.value = true
+}
+
+function closeCoachMenu() {
+  coachOpen.value = false
+}
+
+function onCoachPointer(event: Event) {
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (coachAnchor.value?.contains(target) || coachMenu.value?.contains(target)) return
+  closeCoachMenu()
+}
+
+function pickCoach(coach: CoachOption) {
+  if (!canPickCoach(coach)) return
+  coachingTeams.value = sameCoachTeams(coach) ? [] : coach.teams.map((team) => team.id)
+  closeCoachMenu()
+}
+
+function clearCoaching() {
+  coachingTeams.value = []
+  closeCoachMenu()
+}
+
+function toggleAward(team: any, category: string) {
+  if (!canAward(team, category) || category === 'coaching') return
+  const on = hasTrophy(team.id, category)
   trophies.value = trophies.value.filter((row) => row.category !== category)
   if (!on) trophies.value.push({team: team.id, category})
 }
 
 async function startPresent(mode: 'awards' | 'spiel' = 'awards') {
+  closeCoachMenu()
   if (mode === 'spiel') resetReveal()
   presentMode.value = mode
   await nextTick()
@@ -436,20 +508,25 @@ watch(presentMode, (on) => {
   }
 })
 
+function coachKey(value: number[] | number | '' | null | undefined = coachingTeams.value) {
+  const ids = Array.isArray(value) ? value : (value ? [Number(value)] : [])
+  return ids.filter((id) => id > 0).sort((a, b) => a - b).join(',')
+}
+
 function awardsKey(
     trophyRows: {team: number, category: string}[] = trophies.value,
     nominationRows: {team: number, category: string}[] = nominations.value,
-    coachingTeam: number | '' = coaching.value,
+    coachingValue: number[] | number | '' | null | undefined = coachingTeams.value,
 ) {
   const rows = (list: {team: number, category: string}[]) => list.map((row) => `${row.team}:${row.category}`).sort().join(',')
-  return `${rows(trophyRows)}|${rows(nominationRows)}|${coachingTeam}`
+  return `${rows(trophyRows)}|${rows(nominationRows)}|${coachKey(coachingValue)}`
 }
 
 watch(() => props.results, (results) => {
   const incoming = {
     trophies: [...(results?.awards?.trophies || [])].filter((row) => row.category !== 'robot'),
     nominations: [...(results?.awards?.nominations || [])],
-    coaching: results?.awards?.coaching || '',
+    coaching: results?.awards?.coaching || [],
   }
   const clickedAhead = storedAwardsKey !== null && awardsKey() !== storedAwardsKey && !results?.lifecycle?.closed
   if (clickedAhead) {
@@ -457,7 +534,7 @@ watch(() => props.results, (results) => {
   } else {
     trophies.value = incoming.trophies
     nominations.value = incoming.nominations
-    coaching.value = incoming.coaching
+    coachingTeams.value = coachKey(incoming.coaching).split(',').filter(Boolean).map(Number)
     storedAwardsKey = awardsKey()
   }
   awardError.value = ''
@@ -465,7 +542,101 @@ watch(() => props.results, (results) => {
   queueAwardSave()
 }, {immediate: true})
 
-watch([trophies, nominations, coaching], queueAwardSave, {deep: true})
+watch([trophies, nominations, coachingTeams], queueAwardSave, {deep: true})
+
+const coachingLabel = computed(() => {
+  return coachingTeams.value
+      .map((id) => awardTeams.value.find((team) => team.id === id))
+      .filter((team) => team)
+      .sort((a, b) => Number(a.number ?? 0) - Number(b.number ?? 0))
+      .map((team) => team.name)
+      .join(', ')
+})
+
+function groupCoaches(people: Record<string, unknown>, teams: any[]): CoachOption[] {
+  const byNumber = new Map<string, any>()
+  for (const team of teams) {
+    const number = String(team?.number ?? '').trim()
+    if (number) byNumber.set(String(Number(number)), team)
+  }
+  const byCoach = new Map<string, CoachOption>()
+  for (const [hot, raw] of Object.entries(people)) {
+    if (hot === 'total_players' || hot === 'total_coaches' || !raw || typeof raw !== 'object') continue
+    const team = byNumber.get(String(Number(hot)))
+    if (!team) continue
+    const coaches = Array.isArray((raw as {coaches?: unknown}).coaches) ? (raw as {coaches: unknown[]}).coaches : []
+    for (const coach of coaches) {
+      if (!coach || typeof coach !== 'object') continue
+      const row = coach as {firstname?: string, name?: string, email?: string}
+      const name = [row.firstname, row.name].filter((part) => String(part || '').trim() !== '').join(' ').trim()
+      const email = String(row.email || '').trim().toLowerCase()
+      const display = name || email
+      if (!display) continue
+      const key = email ? `email:${email}` : `name:${name.toLowerCase()}`
+      const ref: CoachTeam = {id: team.id, name: String(team.name || ''), number: String(team.number ?? '')}
+      const existing = byCoach.get(key)
+      if (existing) {
+        if (!existing.teams.some((item) => item.id === ref.id)) existing.teams.push(ref)
+      } else {
+        byCoach.set(key, {key, name: display, teams: [ref]})
+      }
+    }
+  }
+  return [...byCoach.values()]
+      .map((row) => ({
+        ...row,
+        teams: [...row.teams].sort((a, b) => a.number.localeCompare(b.number, 'de', {numeric: true})),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+}
+
+async function loadCoaches(drahtId: number) {
+  coachHint.value = ''
+  coachOptions.value = []
+  closeCoachMenu()
+  let people: Record<string, unknown> | null = null
+  if (drahtId) {
+    try {
+      const {data} = await axios.get(`/draht/people/${drahtId}`)
+      people = data ?? {}
+    } catch {
+      coachHint.value = 'Coach:innen konnten nicht geladen werden.'
+    }
+  }
+  const grouped = people ? groupCoaches(people, props.results?.teams || []) : []
+  if (grouped.length) {
+    coachOptions.value = grouped
+    return
+  }
+  coachOptions.value = teamChoices()
+  if (!coachHint.value) coachHint.value = 'Keine Coach:innen hinterlegt.'
+}
+
+function teamChoices(): CoachOption[] {
+  return (props.results?.teams || []).map((team: any) => ({
+    key: `team:${team.id}`,
+    name: String(team.name || team.number || 'Team'),
+    teams: [{id: team.id, name: String(team.name || ''), number: String(team.number ?? '')}],
+  }))
+}
+
+watch(() => Number(props.results?.event?.draht_id) || 0, (drahtId) => {
+  if (drahtId === loadedDrahtId) return
+  loadedDrahtId = drahtId
+  void loadCoaches(drahtId)
+}, {immediate: true})
+
+watch(coachOpen, (open) => {
+  if (open) {
+    document.addEventListener('pointerdown', onCoachPointer)
+    window.addEventListener('resize', placeCoachMenu)
+    window.addEventListener('scroll', placeCoachMenu, true)
+  } else {
+    document.removeEventListener('pointerdown', onCoachPointer)
+    window.removeEventListener('resize', placeCoachMenu)
+    window.removeEventListener('scroll', placeCoachMenu, true)
+  }
+})
 
 function queueAwardSave() {
   window.clearTimeout(awardSaveTimer)
@@ -510,7 +681,7 @@ function confirmReset() {
   resetOpen.value = false
   if (!awardsEditable.value) return
   nominations.value = []
-  coaching.value = ''
+  coachingTeams.value = []
   trophies.value = resolvePodium([])
 }
 
@@ -554,7 +725,7 @@ async function sendAwards() {
         ...spielTrophy(),
       ],
       nominations: nominations.value,
-      coaching: coaching.value || null,
+      coaching: coachingTeams.value,
     })
     emit('saved', data)
   } catch (e: any) {
@@ -577,6 +748,9 @@ onBeforeUnmount(() => {
   fitObserver?.disconnect()
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPresentKey)
+  document.removeEventListener('pointerdown', onCoachPointer)
+  window.removeEventListener('resize', placeCoachMenu)
+  window.removeEventListener('scroll', placeCoachMenu, true)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
 })
 
@@ -797,6 +971,7 @@ function formatPoints(value: number) {
           <p class="scor-results__note">
             Champion, Silber und Bronze folgen der Gesamtwertung. Bei Gleichstand wähle die Teams in Platz-Reihenfolge.
             Je Kategorie {{ nominationSlots }} Sterne, der Pokal geht an ein nominiertes Team.
+            Coaching wählst du über den Namen. In der Tabelle und auf der Ergebnisseite stehen danach nur die Teams.
           </p>
           <button type="button" class="scor-present" :aria-label="presenting ? 'Vollbild beenden' : 'Vollbild'" @click="presenting ? stopPresent() : startPresent()">
             <i class="bi" :class="presenting ? 'bi-fullscreen-exit' : 'bi-fullscreen'" aria-hidden="true"/>
@@ -820,6 +995,22 @@ function formatPoints(value: number) {
                     <span v-if="column.nominate" class="scor-award-count">{{ nominationCount(column.id) }}/{{ nominationSlots }}</span>
                     <i v-if="awardSortKey === column.id" class="bi" :class="awardSortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
                   </button>
+                  <div v-if="column.id === 'coaching' && awardsEditable" class="scor-coach">
+                    <button
+                        :ref="(node) => setCoachAnchor(column.id, node)"
+                        type="button"
+                        class="scor-coach__value"
+                        :aria-expanded="coachOpen"
+                        aria-haspopup="listbox"
+                        aria-label="Coaching wählen"
+                        :disabled="coachOptions.length < 1"
+                        @click.stop="coachOpen ? closeCoachMenu() : openCoachMenu()"
+                    >
+                      <span class="scor-coach__current" :class="{'is-empty': !coachingLabel}">{{ coachingLabel || 'Bitte wählen' }}</span>
+                      <i class="bi bi-chevron-down" aria-hidden="true"/>
+                    </button>
+                    <p v-if="coachHint && !coachingLabel" class="scor-coach__hint">{{ coachHint }}</p>
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -850,6 +1041,15 @@ function formatPoints(value: number) {
                       <i class="bi" :class="placeOf(team.id) ? 'bi-trophy-fill' : 'bi-trophy'" aria-hidden="true"/>
                       <span>{{ placeOf(team.id)?.label || 'gleichauf' }}</span>
                     </button>
+                  </div>
+                  <div v-else-if="column.id === 'coaching'" class="scor-award-cell">
+                    <span
+                        v-if="coachingTeams.includes(team.id)"
+                        class="scor-mark scor-mark--cup is-on"
+                        aria-label="Coaching"
+                    >
+                      <i class="bi bi-trophy-fill" aria-hidden="true"/>
+                    </span>
                   </div>
                   <div v-else class="scor-award-cell">
                     <button
@@ -938,6 +1138,39 @@ function formatPoints(value: number) {
         </div>
       </div>
     </section>
+    <Teleport to="body">
+      <ul
+          v-if="coachOpen"
+          ref="coachMenu"
+          class="scor-coach__menu"
+          role="listbox"
+          aria-label="Coaching"
+          :style="coachMenuStyle"
+      >
+        <li v-for="coach in coachOptions" :key="coach.key">
+          <button
+              type="button"
+              class="scor-coach__option"
+              role="option"
+              :aria-selected="sameCoachTeams(coach)"
+              :class="{'is-on': sameCoachTeams(coach)}"
+              :disabled="!canPickCoach(coach)"
+              :title="canPickCoach(coach) ? undefined : 'Ein Team hat schon drei Pokale.'"
+              @click="pickCoach(coach)"
+          >
+            <span class="scor-coach__name">{{ coach.name }}</span>
+            <template v-if="coach.teams.length !== 1 || coach.teams[0].name !== coach.name">
+              <span v-for="team in coach.teams" :key="team.id" class="scor-coach__team">{{ team.name }}</span>
+            </template>
+          </button>
+        </li>
+        <li v-if="coachingTeams.length">
+          <button type="button" class="scor-coach__option scor-coach__option--clear" @click="clearCoaching">
+            Auswahl entfernen
+          </button>
+        </li>
+      </ul>
+    </Teleport>
   </div>
 </template>
 
@@ -1000,6 +1233,110 @@ function formatPoints(value: number) {
 .scor-sort.is-active .bi {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.scor-coach {
+  margin-top: 0.4rem;
+}
+
+.scor-coach__value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 11rem;
+  max-width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scor-coach__value:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.scor-coach__current {
+  min-width: 0;
+}
+
+.scor-coach__current.is-empty {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.scor-coach__hint {
+  margin: 0.3rem 0 0;
+  max-width: 11rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.scor-coach__menu {
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 20rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  background: var(--color-bg);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 14%);
+}
+
+.scor-coach__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scor-coach__option.is-on,
+.scor-coach__option:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.scor-coach__option:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.scor-coach__name {
+  font-weight: 800;
+}
+
+.scor-coach__team {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.scor-coach__option--clear {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+span.scor-mark {
+  cursor: default;
 }
 
 .scor-team__name,

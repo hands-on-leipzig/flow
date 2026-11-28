@@ -50,7 +50,7 @@ class ScorPublicResultsTest extends TestCase
         $this->assertSame(['number' => 103, 'name' => 'Gamma'], $research['winner']);
         $this->assertSame([], $awards['categories'][1]['nominees']);
         $this->assertNull($awards['categories'][1]['winner']);
-        $this->assertSame(['number' => 102, 'name' => 'Beta'], $awards['coaching']);
+        $this->assertSame([['number' => 102, 'name' => 'Beta']], $awards['coaching']);
         $this->assertSame([
             ['number' => 102, 'name' => 'Beta', 'place' => 1],
             ['number' => 101, 'name' => 'Alpha', 'place' => 2],
@@ -79,8 +79,28 @@ class ScorPublicResultsTest extends TestCase
             'awards' => ['trophies' => [], 'nominations' => [], 'coaching' => null],
         ]);
 
+        $this->assertSame([], $public['awards']['coaching']);
         $this->assertSame([], $public['awards']['game']);
         $this->assertNull($public['game']['teams'][0]['best']);
+    }
+
+    public function test_coaching_lists_team_names_only(): void
+    {
+        $public = (new ScorPublicResults())->fromResults([
+            'event' => ['id' => 1, 'name' => 'Leipzig'],
+            'rounds' => [],
+            'teams' => [
+                $this->team(1, 101, 'Alpha', robotRank: 1, robot: 10, championRank: 1),
+                $this->team(2, 102, 'Beta', robotRank: 2, robot: 9, championRank: 2),
+            ],
+            'awards' => ['trophies' => [], 'nominations' => [], 'coaching' => [2, 1]],
+        ]);
+
+        $this->assertSame([
+            ['number' => 101, 'name' => 'Alpha'],
+            ['number' => 102, 'name' => 'Beta'],
+        ], $public['awards']['coaching']);
+        $this->assertStringNotContainsString('coach', json_encode($public['awards']['coaching']));
     }
 
     /**

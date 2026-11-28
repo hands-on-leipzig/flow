@@ -184,7 +184,7 @@ class ScorSheetServiceTest extends TestCase
         ]);
 
         $this->assertCount(2, $saved['awards']['trophies']);
-        $this->assertSame(1, $saved['awards']['coaching']);
+        $this->assertSame([1], $saved['awards']['coaching']);
         $this->assertCount(2, $saved['awards']['nominations']);
     }
 
@@ -198,7 +198,21 @@ class ScorSheetServiceTest extends TestCase
             'coaching' => 2,
         ]);
 
-        $this->assertSame(2, $saved['awards']['coaching']);
+        $this->assertSame([2], $saved['awards']['coaching']);
+    }
+
+    public function test_coaching_covers_every_team_of_the_chosen_coach(): void
+    {
+        $this->createAwardTable();
+
+        $saved = $this->sheets->saveAwards($this->user(), 1, [
+            'trophies' => [],
+            'nominations' => [],
+            'coaching' => [2, 1, 1],
+        ]);
+
+        $this->assertSame([1, 2], $saved['awards']['coaching']);
+        $this->assertSame(2, DB::table('scor_award')->where('category', 'coaching')->count());
     }
 
     public function test_closed_event_blocks_sheets_and_playground_is_wiped_the_day_before(): void

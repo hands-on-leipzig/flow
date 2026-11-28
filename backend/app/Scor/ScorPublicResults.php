@@ -52,7 +52,13 @@ final class ScorPublicResults
             ];
         }
 
-        $coaching = $awards['coaching'] ?? null;
+        $coaching = [];
+        foreach ($this->coachingIds($awards['coaching'] ?? null) as $id) {
+            if (isset($teams[$id])) {
+                $coaching[] = $this->team($teams[$id]);
+            }
+        }
+        usort($coaching, fn (array $a, array $b) => (int) $a['number'] <=> (int) $b['number']);
 
         $game = array_values($teams);
         usort($game, function (array $a, array $b): int {
@@ -73,7 +79,7 @@ final class ScorPublicResults
             'awards' => [
                 'podium' => $podium,
                 'categories' => $categories,
-                'coaching' => $coaching && isset($teams[(int) $coaching]) ? $this->team($teams[(int) $coaching]) : null,
+                'coaching' => $coaching,
                 'game' => array_map(fn (array $team) => $this->team($team) + ['place' => (int) $team['robot_rank']], $gameWinners),
             ],
             'game' => [
@@ -101,6 +107,28 @@ final class ScorPublicResults
             'best' => $played === [] ? null : max($played),
             'rounds' => $cells,
         ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function coachingIds(mixed $coaching): array
+    {
+        if ($coaching === null || $coaching === '' || $coaching === []) {
+            return [];
+        }
+        $ids = [];
+        foreach (is_array($coaching) ? $coaching : [$coaching] as $id) {
+            if (is_array($id)) {
+                continue;
+            }
+            $team = (int) $id;
+            if ($team > 0) {
+                $ids[$team] = $team;
+            }
+        }
+
+        return array_values($ids);
     }
 
     /**

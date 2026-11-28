@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
  * Spiel and Coaching may be added. A team holds at most three trophies.
  * Each judged category has at most four nominations.
  * Champion, Silber and Bronze follow the overall ranking and need no nomination.
- * Coaching may go to any team.
+ * Coaching goes to every team of the chosen coach.
  */
 final class ScorAwards
 {
@@ -27,8 +27,9 @@ final class ScorAwards
     /**
      * @param  list<array{team: int, category: string}>  $trophies
      * @param  list<array{team: int, category: string}>  $nominations
+     * @param  list<int>  $coachingTeams
      */
-    public function assertLegal(array $trophies, array $nominations, ?int $coachingTeam): void
+    public function assertLegal(array $trophies, array $nominations, array $coachingTeams): void
     {
         $perTeam = [];
         foreach ($trophies as $row) {
@@ -39,8 +40,8 @@ final class ScorAwards
             }
             $perTeam[$team][] = $category;
         }
-        if ($coachingTeam) {
-            $perTeam[$coachingTeam][] = 'coaching';
+        foreach ($coachingTeams as $team) {
+            $perTeam[(int) $team][] = 'coaching';
         }
 
         foreach ($perTeam as $categories) {
@@ -89,21 +90,21 @@ final class ScorAwards
     }
 
     /**
-     * @return array{trophies: list<array{team: int, category: string}>, nominations: list<array{team: int, category: string}>, coaching: ?int}
+     * @return array{trophies: list<array{team: int, category: string}>, nominations: list<array{team: int, category: string}>, coaching: list<int>}
      */
     public function forEvent(int $eventId): array
     {
-        $empty = ['trophies' => [], 'nominations' => [], 'coaching' => null];
+        $empty = ['trophies' => [], 'nominations' => [], 'coaching' => []];
         if (!Schema::hasTable('scor_award')) {
             return $empty;
         }
 
         $trophies = [];
         $nominations = [];
-        $coaching = null;
+        $coaching = [];
         foreach (DB::table('scor_award')->where('event', $eventId)->orderBy('id')->get() as $row) {
             if ($row->kind === 'trophy' && $row->category === 'coaching') {
-                $coaching = (int) $row->team;
+                $coaching[] = (int) $row->team;
 
                 continue;
             }
@@ -115,21 +116,27 @@ final class ScorAwards
             }
         }
 
+        $coaching = array_values(array_unique($coaching));
+        sort($coaching);
+
         return ['trophies' => $trophies, 'nominations' => $nominations, 'coaching' => $coaching];
     }
 
     /**
      * @param  list<array{team: int, category: string}>  $trophies
      * @param  list<array{team: int, category: string}>  $nominations
+     * @param  list<int>  $coachingTeams
      */
-    public function replace(int $eventId, array $trophies, array $nominations, ?int $coachingTeam): array
+    public function replace(int $eventId, array $trophies, array $nominations, array $coachingTeams): array
     {
-        $this->assertLegal($trophies, $nominations, $coachingTeam);
+        $coachingTeams = array_values(array_unique(array_map('intval', $coachingTeams)));
+        sort($coachingTeams);
+        $this->assertLegal($trophies, $nominations, $coachingTeams);
         if (!Schema::hasTable('scor_award')) {
             throw new ScorAccessException('Auszeichnungen sind noch nicht eingerichtet.', 503);
         }
 
-        DB::transaction(function () use ($eventId, $trophies, $nominations, $coachingTeam) {
+        DB::transaction(function () use ($eventId, $trophies, $nominations, $coachingTeams) {
             DB::table('scor_award')->where('event', $eventId)->delete();
             $rows = [];
             foreach ($trophies as $row) {
@@ -148,10 +155,10 @@ final class ScorAwards
                     'kind' => 'nomination',
                 ];
             }
-            if ($coachingTeam) {
+            foreach ($coachingTeams as $team) {
                 $rows[] = [
                     'event' => $eventId,
-                    'team' => $coachingTeam,
+                    'team' => $team,
                     'category' => 'coaching',
                     'kind' => 'trophy',
                 ];
