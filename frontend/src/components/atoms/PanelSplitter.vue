@@ -7,11 +7,14 @@ const props = withDefaults(defineProps<{
   min?: number
   max?: number
   storageKey?: string
+  /** Viewport from which the divider is shown. `lg` matches splits that stay stacked until 1024px. */
+  from?: 'md' | 'lg'
 }>(), {
   modelValue: 50,
   min: 28,
   max: 72,
   storageKey: 'flow-schedule-split',
+  from: 'md',
 })
 
 const emit = defineEmits<{
@@ -94,7 +97,10 @@ onBeforeUnmount(() => {
   <div
       ref="root"
       class="panel-splitter"
-      :class="{ 'panel-splitter--dragging': dragging }"
+      :class="{
+        'panel-splitter--dragging': dragging,
+        'panel-splitter--lg': from === 'lg',
+      }"
       role="separator"
       aria-orientation="vertical"
       aria-label="Bereichsbreite anpassen"
@@ -116,15 +122,28 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .panel-splitter {
+  display: none;
   flex: 0 0 0.9rem;
   position: relative;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
-  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3;
+}
+
+/* Scoped display beats Tailwind `hidden`, so the breakpoint lives here. */
+@media (min-width: 768px) {
+  .panel-splitter {
+    display: flex;
+  }
+}
+
+@media (max-width: 1023px) {
+  .panel-splitter--lg {
+    display: none;
+  }
 }
 
 .panel-splitter__rail {

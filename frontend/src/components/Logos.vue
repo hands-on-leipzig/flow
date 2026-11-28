@@ -513,7 +513,8 @@ onMounted(async () => {
 
           <PanelSplitter
               v-model="leftWidth"
-              class="hidden lg:flex logos-workspace__splitter"
+              class="logos-workspace__splitter"
+              from="lg"
               :min="32"
               :max="68"
               storage-key="flow-logos-split"
