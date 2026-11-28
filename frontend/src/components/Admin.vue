@@ -19,6 +19,7 @@ import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
 import Enrollments from '@/components/molecules/Enrollments.vue'
 import ScorAdmin from '@/components/molecules/ScorAdmin.vue'
 import ScorFormsAdmin from '@/components/molecules/ScorFormsAdmin.vue'
+import EventAdministration from '@/components/EventAdministration.vue'
 import Cockpit from '@/components/molecules/Cockpit.vue'
 import HelpAdmin from '@/components/molecules/HelpAdmin.vue'
 import {
@@ -169,6 +170,10 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'scor'">
       <ScorAdmin/>
+    </div>
+
+    <div v-else-if="activeTab === 'event-admin'">
+      <EventAdministration/>
     </div>
 
     <div v-else-if="activeTab === 'scor-forms'">

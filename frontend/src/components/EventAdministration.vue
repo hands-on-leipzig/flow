@@ -120,7 +120,7 @@ onMounted(() => void load())
   <div class="event-admin">
     <header class="event-admin__head">
       <div>
-        <h1>Administration der Events</h1>
+        <h1>SCORE-Administration</h1>
         <p>Ergebnisse freigeben, die Tabelle zurücksetzen oder sämtliche Bewertungen eines Events löschen.</p>
       </div>
       <input

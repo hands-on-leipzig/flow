@@ -65,11 +65,12 @@ final class ScorFormStore
                 foreach (array_values($section['items'] ?? []) as $itemIndex => $item) {
                     $type = (string) ($item['item_type'] ?? '');
                     $this->assertItemType((string) $form->kind, $kind, $type);
-                $config = $this->encodeConfig($type, $item['config'] ?? null);
                 $label = trim((string) ($item['label'] ?? ''));
-                if ($type === 'rubric' && is_array($item['config']['cells'] ?? null)) {
-                    $label = trim((string) ($item['config']['cells'][0] ?? $label));
+                $configInput = is_array($item['config'] ?? null) ? $item['config'] : null;
+                if ($type === 'rubric' && is_array($configInput)) {
+                    $configInput['prompt'] = $label;
                 }
+                $config = $this->encodeConfig($type, $configInput);
                 DB::table('scor_item')->insert([
                     'section' => $sectionId,
                     'sequence' => $itemIndex,
@@ -227,7 +228,14 @@ final class ScorFormStore
             return DB::table('scor_item')
                 ->join('scor_section', 'scor_section.id', '=', 'scor_item.section')
                 ->where('scor_section.form', $formId)
-                ->where('scor_item.label', 'Das Team definierte ein Problem klar und recherchierte gründlich.')
+                ->where(function ($query) {
+                    $query->where('scor_item.label', 'Das Team definierte ein Problem klar und recherchierte gründlich.')
+                        ->orWhere('scor_item.label', 'like', '%angeleitete Recherche%')
+                        ->orWhere('scor_item.label', 'like', '%eigenständige Denken in der Projektidee%')
+                        ->orWhere('scor_item.config', 'like', '%angeleitete Recherche%')
+                        ->orWhere('scor_item.config', 'like', '%eigenständige Denken in der Projektidee%')
+                        ->orWhere('scor_item.config', 'like', '%"Erforschen"%');
+                })
                 ->exists();
         }
 

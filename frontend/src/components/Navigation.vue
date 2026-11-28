@@ -161,9 +161,6 @@ const navEntries = computed<NavEntry[]>(() => [
       {name: 'Cockpit', path: '/plan/live/cockpit', icon: 'bi-speedometer2'},
     ],
   },
-  ...(isAdmin.value
-    ? [{name: 'Administration der Events', path: '/plan/event-admin', icon: 'bi-shield-lock'}]
-    : []),
 ])
 
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
@@ -172,6 +169,9 @@ const showBackToOverview = computed(() => isAdminMode.value)
 
 const scorNavEntries = computed<NavEntry[]>(() => [
   {name: 'Veranstaltungen', path: scorePath(), icon: 'bi-calendar-event'},
+  ...(isAdmin.value
+    ? [{name: 'SCORE-Administration', path: '/plan/admin/event-admin', icon: 'bi-shield-lock'}]
+    : []),
 ])
 
 const wiseCollapsed = ref(true)
