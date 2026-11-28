@@ -234,11 +234,16 @@ final class ScorSheetService
             return (int) $a['number'] <=> (int) $b['number'];
         });
 
+        $eventOut = [
+            'id' => (int) $event->id,
+            'name' => $event->name,
+        ];
+        if (!$public) {
+            $eventOut['draht_id'] = $this->futureDrahtId($eventId);
+        }
+
         return [
-            'event' => [
-                'id' => (int) $event->id,
-                'name' => $event->name,
-            ],
+            'event' => $eventOut,
             'rounds' => array_values($rounds),
             'teams' => $rows,
             'awards' => (new ScorAwards())->forEvent($eventId),
@@ -383,12 +388,7 @@ final class ScorSheetService
         }
         $trophies = $this->awardRows($input['trophies'] ?? [], $known);
         $nominations = $this->awardRows($input['nominations'] ?? [], $known);
-        $coaching = isset($input['coaching']) && $input['coaching'] !== null && $input['coaching'] !== ''
-            ? (int) $input['coaching']
-            : null;
-        if ($coaching !== null && !isset($known[$coaching])) {
-            throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
-        }
+        $coaching = $this->coachingTeams($input['coaching'] ?? null, $known);
         $this->assertPodium($standings, $trophies);
 
         $saved = (new ScorAwards())->replace($eventId, $trophies, $nominations, $coaching);
@@ -1112,6 +1112,45 @@ final class ScorSheetService
         $id = DB::table('plan')->where('event', $eventId)->orderByDesc('id')->value('id');
 
         return $id ? (int) $id : null;
+    }
+
+    private function futureDrahtId(int $eventId): ?int
+    {
+        if (!Schema::hasTable('event_program') || !Schema::hasColumn('event_program', 'draht_id')) {
+            return null;
+        }
+        $id = DB::table('event_program')
+            ->where('event', $eventId)
+            ->where('first_program', FirstProgram::FUTURE_8->value)
+            ->value('draht_id');
+
+        return $id ? (int) $id : null;
+    }
+
+    /**
+     * One coach can belong to several teams. The award stores those teams, not the name.
+     *
+     * @param  array<int, bool>  $known
+     * @return list<int>
+     */
+    private function coachingTeams(mixed $value, array $known): array
+    {
+        if ($value === null || $value === '' || $value === []) {
+            return [];
+        }
+        $ids = is_array($value) ? $value : [$value];
+        $teams = [];
+        foreach ($ids as $id) {
+            $team = (int) $id;
+            if (!isset($known[$team])) {
+                throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
+            }
+            $teams[$team] = $team;
+        }
+        $teams = array_values($teams);
+        sort($teams);
+
+        return $teams;
     }
 
     /**
