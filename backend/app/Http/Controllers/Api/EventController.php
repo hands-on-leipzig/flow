@@ -495,9 +495,13 @@ class EventController extends Controller
     {
         $request->validate([
             'address' => 'required|string|max:500',
+            'country' => 'nullable|string|max:32',
         ]);
 
-        $result = $geocode->address((string) $request->input('address'));
+        $result = $geocode->address(
+            (string) $request->input('address'),
+            $request->input('country')
+        );
 
         if (!$result) {
             return response()->json([

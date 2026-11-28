@@ -25,6 +25,7 @@ final class PublicSchedulePayload
             'days' => $event->days,
             'enddate' => $event->enddate,
             'address' => $drahtData['address'] ?? null,
+            'country' => self::nullableString($drahtData['country'] ?? null),
             'contact' => $drahtData['contact'] ?? [],
             'teams' => [
                 'lanes' => self::buildTeamLanes($event, $drahtData, $level),

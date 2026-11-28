@@ -19,19 +19,30 @@ class GeocodeService
     private const MISS_TTL_HOURS = 6;
 
     /**
-     * Resolve a postal address. Tries the address as given, then progressively
-     * coarser variants (street + PLZ/city, PLZ + city, city) so that a venue
-     * name or an extra line does not break the lookup.
+     * Resolve a postal address inside one country.
+     *
+     * DE uses a 5-digit PLZ, AT and CH a 4-digit one. The lookup is the postal
+     * code (plus the street when one is present), limited to that country.
+     * A free-text search of the venue name is not used: "Chur" inside Germany
+     * is a bus stop in Mönchengladbach.
      *
      * @return array{lat: float, lon: float, display_name: string, query: string}|null
      */
-    public function address(string $address): ?array
+    public function address(string $address, ?string $country = null): ?array
     {
-        foreach ($this->addressCandidates($address) as $candidate) {
-            $result = $this->lookup('address', $candidate, ['q' => $candidate]);
-            if ($result) {
-                return $result + ['query' => $candidate];
+        $country = $this->normalizeCountry($country) ?? $this->countryFromAddress($address);
+        $parsed = $this->parsePostalAddress($address, $country);
+
+        foreach ($this->addressAttempts($parsed, $country) as $attempt) {
+            $result = $this->lookup('address', $attempt['key'], $attempt['query']);
+            if ($result === null) {
+                continue;
             }
+            if ($attempt['city'] !== null && ! $this->displayContains($result['display_name'], $attempt['city'])) {
+                continue;
+            }
+
+            return $result + ['query' => $attempt['label']];
         }
 
         return null;
@@ -62,42 +73,229 @@ class GeocodeService
     }
 
     /**
-     * @return list<string>
+     * @param  array{street: string, postal: ?string, city: ?string, lines: list<string>}  $parsed
+     * @return list<array{key: string, label: string, city: ?string, query: array<string, string>}>
      */
-    private function addressCandidates(string $address): array
+    private function addressAttempts(array $parsed, ?string $country): array
     {
-        $lines = $this->splitLines($address);
+        $street = $parsed['street'];
+        $postal = $parsed['postal'];
+        $city = $parsed['city'];
+        $attempts = [];
+
+        if ($postal !== null) {
+            $countries = $this->postalCountries($country, $postal);
+            $mustMatchCity = $country === null && strlen($postal) === 4;
+            foreach ($countries as $code) {
+                if ($street !== '') {
+                    $attempts[] = [
+                        'key' => 'street:'.$code.':'.$postal.':'.$street,
+                        'label' => $street.', '.$postal,
+                        'city' => $mustMatchCity ? $city : null,
+                        'query' => [
+                            'street' => $street,
+                            'postalcode' => $postal,
+                            'countrycodes' => $code,
+                        ],
+                    ];
+                }
+                $attempts[] = [
+                    'key' => 'postal:'.$code.':'.$postal.':'.($mustMatchCity ? (string) $city : ''),
+                    'label' => $postal.($city ? ' '.$city : ''),
+                    'city' => $mustMatchCity ? $city : null,
+                    'query' => [
+                        'postalcode' => $postal,
+                        'countrycodes' => $code,
+                    ],
+                ];
+                if ($city !== null && $city !== '') {
+                    $attempts[] = [
+                        'key' => 'city:'.$code.':'.$postal.':'.$city,
+                        'label' => $city,
+                        'city' => $mustMatchCity ? $city : null,
+                        'query' => [
+                            'city' => $city,
+                            'countrycodes' => $code,
+                        ],
+                    ];
+                }
+            }
+
+            return $attempts;
+        }
+
+        $lines = $parsed['lines'];
         if ($lines === []) {
             return [];
         }
+        $code = $country ?? '';
+        foreach ($this->looseCandidates($lines) as $candidate) {
+            $query = ['q' => $candidate];
+            if ($code !== '') {
+                $query['countrycodes'] = $code;
+            }
+            $attempts[] = [
+                'key' => 'q:'.$code.':'.$candidate,
+                'label' => $candidate,
+                'city' => null,
+                'query' => $query,
+            ];
+        }
 
+        return $attempts;
+    }
+
+    /**
+     * Countries whose postal-code length matches. A 4-digit code without a
+     * known country is tried in Switzerland and then Austria. Germany is not
+     * one of them: its codes have five digits, and a German free-text search
+     * of the place name resolves homonyms such as the bus stop Chur.
+     *
+     * @return list<string>
+     */
+    private function postalCountries(?string $country, string $postal): array
+    {
+        if ($country !== null) {
+            return [$country];
+        }
+
+        return strlen($postal) === 5 ? ['de'] : ['ch', 'at'];
+    }
+
+    /**
+     * @return array{street: string, postal: ?string, city: ?string, lines: list<string>}
+     */
+    private function parsePostalAddress(string $address, ?string $country): array
+    {
+        $lines = $this->splitLines($address);
+        $postal = null;
+        $city = null;
+        $postalIndex = null;
+
+        for ($i = count($lines) - 1; $i >= 0; $i--) {
+            $found = $this->postalLine($lines[$i], $country);
+            if ($found === null) {
+                continue;
+            }
+            $postal = $found['postal'];
+            $city = $found['city'];
+            $postalIndex = $i;
+            break;
+        }
+
+        $street = '';
+        if ($postalIndex !== null && $postalIndex > 0 && $this->looksLikeStreet($lines[$postalIndex - 1])) {
+            // The venue name often sits above the street and may contain a digit ("Halle 5").
+            $street = $lines[$postalIndex - 1];
+        } else {
+            foreach ($lines as $i => $line) {
+                if ($i === $postalIndex) {
+                    continue;
+                }
+                if ($this->looksLikeStreet($line)) {
+                    $street = $line;
+                    break;
+                }
+            }
+        }
+
+        return [
+            'street' => $street,
+            'postal' => $postal,
+            'city' => $city !== '' ? $city : null,
+            'lines' => $lines,
+        ];
+    }
+
+    /**
+     * @return array{postal: string, city: string}|null
+     */
+    private function postalLine(string $line, ?string $country): ?array
+    {
+        if (! preg_match('/^(?:(?:CH|A|D)[-\s]*)?(\d{4,5})\b\s*(.*)$/iu', $line, $match)) {
+            return null;
+        }
+
+        $code = $match[1];
+        $length = strlen($code);
+        if ($country === 'de' && $length !== 5) {
+            return null;
+        }
+        if (($country === 'at' || $country === 'ch') && $length !== 4) {
+            return null;
+        }
+        if ($country === null && $length !== 4 && $length !== 5) {
+            return null;
+        }
+
+        $city = $this->collapseWhitespace($match[2]);
+
+        return ['postal' => $code, 'city' => $city];
+    }
+
+    private function looksLikeStreet(string $line): bool
+    {
+        return preg_match('/\p{L}/u', $line) === 1
+            && preg_match('/\d/', $line) === 1
+            && preg_match('/^\d{4,5}\b/u', $line) !== 1;
+    }
+
+    private function normalizeCountry(?string $country): ?string
+    {
+        $value = mb_strtolower(trim((string) $country));
+        if ($value === '') {
+            return null;
+        }
+
+        return match ($value) {
+            'de', 'd', 'deutschland', 'germany' => 'de',
+            'at', 'a', 'österreich', 'oesterreich', 'austria' => 'at',
+            'ch', 'schweiz', 'switzerland', 'suisse', 'svizzera' => 'ch',
+            'fr', 'frankreich', 'france' => 'fr',
+            default => preg_match('/^[a-z]{2}$/', $value) === 1 ? $value : null,
+        };
+    }
+
+    private function countryFromAddress(string $address): ?string
+    {
+        $lower = mb_strtolower($address);
+        if (preg_match('/\b(schweiz|switzerland|suisse|svizzera|svizra)\b/u', $lower) === 1) {
+            return 'ch';
+        }
+        if (preg_match('/\b(österreich|oesterreich|austria)\b/u', $lower) === 1) {
+            return 'at';
+        }
+        if (preg_match('/\b(deutschland|germany)\b/u', $lower) === 1) {
+            return 'de';
+        }
+        if (preg_match('/\bCH[-\s]\d{4}\b/u', $address) === 1) {
+            return 'ch';
+        }
+        if (preg_match('/\bA-\d{4}\b/u', $address) === 1) {
+            return 'at';
+        }
+
+        return null;
+    }
+
+    private function displayContains(string $displayName, ?string $city): bool
+    {
+        if ($city === null || $city === '') {
+            return true;
+        }
+
+        return mb_stripos($displayName, $city) !== false;
+    }
+
+    /**
+     * @param  list<string>  $lines
+     * @return list<string>
+     */
+    private function looseCandidates(array $lines): array
+    {
         $candidates = [implode(', ', $lines)];
-
-        // The first line is often a venue or hall name that Nominatim does not know.
         if (count($lines) > 1) {
             $candidates[] = implode(', ', array_slice($lines, 1));
-        }
-
-        $plzIndex = null;
-        for ($i = count($lines) - 1; $i >= 1; $i--) {
-            if (preg_match('/\b\d{5}\b/', $lines[$i])) {
-                $plzIndex = $i;
-                break;
-            }
-        }
-
-        if ($plzIndex !== null) {
-            $plzCity = $lines[$plzIndex];
-            $candidates[] = $lines[$plzIndex - 1] . ', ' . $plzCity;
-            $candidates[] = $lines[0] . ', ' . $plzCity;
-            $candidates[] = $plzCity;
-
-            $city = trim(preg_replace('/\b\d{5}\b/', '', $plzCity));
-            if ($city !== '') {
-                $candidates[] = $city;
-            }
-        } elseif (count($lines) >= 2) {
-            $candidates[] = $lines[0] . ', ' . $lines[count($lines) - 1];
             $candidates[] = $lines[count($lines) - 1];
         }
 
@@ -159,9 +357,12 @@ class GeocodeService
         $this->throttle();
 
         $query += ['format' => 'json', 'limit' => 1];
-        $countries = trim((string) config('services.nominatim.countrycodes', ''));
-        if ($countries !== '') {
-            $query['countrycodes'] = $countries;
+        $explicit = trim((string) ($query['countrycodes'] ?? ''));
+        if ($explicit === '') {
+            $countries = trim((string) config('services.nominatim.countrycodes', ''));
+            if ($countries !== '') {
+                $query['countrycodes'] = $countries;
+            }
         }
 
         try {

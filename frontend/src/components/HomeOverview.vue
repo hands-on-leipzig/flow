@@ -35,6 +35,7 @@ const teamStats = ref<Array<{
   registered: number
 }>>([])
 const loading = ref(true)
+const venueCountry = ref('')
 
 const programList = computed(() => eventPrograms(event.value))
 
@@ -102,6 +103,7 @@ async function loadOverviewData() {
     if (drahtRes.status === 'fulfilled') {
       const data = drahtRes.value
       event.value.address = data.address
+      venueCountry.value = data.country || ''
       event.value.contact = data.contact
       event.value.information = data.information
       const programs = Array.isArray(data.programs) ? data.programs : []
@@ -269,6 +271,7 @@ watch(
             <EventMap
                 v-if="event?.address && event?.id"
                 :address="event.address"
+                :country="venueCountry"
                 :event-id="event.id"
                 :event-name="getEventTitleShort(event) || ''"
                 :show-q-r-code="false"
