@@ -46,11 +46,19 @@ function stamp(list: Form[]) {
   for (const form of list) {
     for (const section of form.sections || []) {
       section.key ||= freshKey()
+      let previousGroup = ''
       for (const item of section.items || []) {
         item.key ||= freshKey()
-        if (item.item_type === 'rubric' && !String(item.label || '').trim() && item.config?.prompt) {
-          item.label = item.config.prompt
-        }
+        if (item.item_type !== 'rubric') continue
+        item.config = item.config || {}
+        const label = String(item.label || '').trim()
+        const prompt = String(item.config.prompt || '').trim()
+        const hint = String(item.config.group_hint || '').trim()
+        const group = String(item.config.group || '').trim()
+        if (!label) item.label = prompt || hint
+        if (!group && previousGroup) item.config.group = previousGroup
+        item.config.group_hint = ''
+        previousGroup = String(item.config.group || '').trim() || previousGroup
       }
     }
   }

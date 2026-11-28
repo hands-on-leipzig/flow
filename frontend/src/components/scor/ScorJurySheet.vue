@@ -158,15 +158,24 @@ function hasLevelText(item: any) {
   return (item.config?.cells || []).some((cell: string) => String(cell || '').trim() !== '')
 }
 
+function criterionText(item: any) {
+  const prompt = String(item.config?.prompt || '').trim()
+  const label = String(item.label || '').trim()
+  if (prompt || label) return prompt || label
+  return String(item.config?.group_hint || '').trim()
+}
+
 function groups(items: any[]) {
   const rows: {group: string, hint: string, items: any[]}[] = []
   for (const item of items) {
     const group = item.config?.group || ''
+    const hintIsCriterion = !String(item.config?.prompt || '').trim() && !String(item.label || '').trim()
+    const hint = hintIsCriterion ? '' : (item.config?.group_hint || '')
     const last = rows[rows.length - 1]
     if (last && last.group === group) {
       last.items.push(item)
     } else {
-      rows.push({group, hint: item.config?.group_hint || '', items: [item]})
+      rows.push({group, hint, items: [item]})
     }
   }
   return rows
@@ -307,9 +316,9 @@ function setLevel(id: number, level: number) {
           <ScorText v-if="group.group" tag="div" class="jury-group__title" :text="group.group"/>
           <ScorText v-if="group.hint" tag="div" class="jury-group__hint" :text="group.hint"/>
           <div v-for="item in group.items" :key="item.id" class="jury-row" :class="{'is-done': values[String(item.id)]}">
-            <div v-if="!hasLevelText(item)" class="jury-prompt">
+            <div v-if="!hasLevelText(item) && criterionText(item)" class="jury-prompt">
+              <ScorText :text="criterionText(item)"/>
               <ScorGear v-if="item.core_value"/>
-              <ScorText :text="item.config?.prompt || item.label"/>
             </div>
             <div class="jury-levels" :class="{'jury-levels--plain': !hasLevelText(item)}">
               <template v-if="hasLevelText(item)">
@@ -573,13 +582,24 @@ function setLevel(id: number, level: number) {
 }
 
 .jury-prompt {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.45rem;
+  display: block;
   margin: 0 0 0.45rem;
   font-size: 1.05rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.35;
+}
+
+.jury-prompt :deep(.scor-text),
+.jury-prompt :deep(.scor-text p) {
+  display: inline;
+}
+
+.jury-prompt :deep(.scor-gear) {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-left: 0.35rem;
+  vertical-align: -0.15em;
 }
 
 .jury-legend {
