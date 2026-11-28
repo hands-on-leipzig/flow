@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Services\ContaoResultLinkService;
+use App\Support\ProgramCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,18 +14,52 @@ use Exception;
 
 class ContaoController extends Controller
 {
+    private const PUBLIC_SCORE_URL = 'https://evaluation.hands-on-technology.org/de/score/';
+
     /**
      * Links to the Contao results of Explore and Challenge.
-     * Only the event's own season, and only after Contao has published the score.
+     * Only tournaments whose score Contao itself has published.
      */
-    public function resultLinks(int $eventId, ContaoResultLinkService $links): JsonResponse
+    public function resultLinks(int $eventId): JsonResponse
     {
-        $event = Event::with('seasonRel')->find($eventId);
+        $event = Event::find($eventId);
         if (! $event) {
             return response()->json(['error' => 'Veranstaltung nicht gefunden'], 404);
         }
 
-        return response()->json($links->links($event));
+        $links = [];
+        foreach ([FirstProgram::EXPLORE, FirstProgram::CHALLENGE] as $program) {
+            $contaoId = ProgramCatalog::contaoId($event, $program->value);
+            if (! $contaoId) {
+                continue;
+            }
+            try {
+                $tournament = DB::connection('contao')
+                    ->table('hot_tournament')
+                    ->where('region', $contaoId)
+                    ->first(['id', 'alias']);
+                if (! $tournament || ! $tournament->alias) {
+                    continue;
+                }
+                $published = DB::connection('contao')
+                    ->table('hot_score')
+                    ->where('pid', $tournament->id)
+                    ->where('is_published', 1)
+                    ->exists();
+            } catch (Exception $e) {
+                Log::warning("Contao results link for event {$eventId}: ".$e->getMessage());
+
+                continue;
+            }
+            if ($published) {
+                $links[] = [
+                    'first_program' => $program->value,
+                    'url' => self::PUBLIC_SCORE_URL.rawurlencode((string) $tournament->alias),
+                ];
+            }
+        }
+
+        return response()->json(array_values(array_unique($links, SORT_REGULAR)));
     }
 
     /**
